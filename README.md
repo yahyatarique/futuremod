@@ -93,7 +93,7 @@ Optional repository **Variables**: `VITE_FUTUREMOD_ROOT_DOMAIN` (e.g. `futuremod
 cd apps/studio && npx wrangler deploy
 ```
 
-Ensure `wrangler.toml` **`name`** matches your Cloudflare Workers project name. SPA routing uses `not_found_handling = "single-page-application"`; [`_redirects`](apps/studio/public/_redirects) still helps hosts that honor it outside Workers.
+Ensure `wrangler.toml` **`name`** matches your Cloudflare Workers project name. SPA routing uses `not_found_handling = "single-page-application"` in [`wrangler.toml`](apps/studio/wrangler.toml). Do **not** ship a Netlify-style `public/_redirects` catch‑all (`/* → /index.html 200`): Workers static‑asset uploads treat that as an **invalid / infinite‑loop redirect** ([error 10021](https://developers.cloudflare.com/workers/observability/errors/#validation-errors-10021)). For GitHub-deployed **Pages** only (no Wrangler SPA), configure SPA fallback in the Pages project or provider-specific redirects instead.
 
 **Packages:** you do **not** deploy `packages/ui` or `packages/ai-context` to Pages separately — Studio’s build **bundles** them into `apps/studio/dist`. Publishing those packages to **npm** is optional and only needed if others install them as libraries. **`@futuremod/mcp-server`** is a **Node** MCP process (not static files); use `npx`/npm or a separate host if you want it in the cloud, not the Pages deploy.
 
