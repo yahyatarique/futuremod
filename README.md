@@ -68,6 +68,29 @@ Deploy the same Studio build behind a wildcard DNS record (`*.futuremod.site`) a
 | `VITE_FUTUREMOD_ROOT_DOMAIN` | Defaults to `futuremod.site` if unset. |
 | `VITE_FUTUREMOD_PROJECT_SLUG` | **Local only:** pretend to be a named project without DNS. |
 
+### CI & Cloudflare Pages (GitHub Actions)
+
+Workflows in [`.github/workflows`](.github/workflows):
+
+| Workflow | When |
+|----------|------|
+| `ci.yml` | Push / PR to `main` — `pnpm install --frozen-lockfile` + `pnpm build`. |
+| `deploy-cloudflare-pages.yml` | Push to `main` or manual **workflow_dispatch** — publishes `apps/studio/dist` to **Cloudflare Pages**. |
+
+**One-time setup**
+
+1. In [Cloudflare Dashboard](https://dash.cloudflare.com/) → **Workers & Pages** → **Create** → **Pages** → connect GitHub *or* rely on the GitHub Action only (project must exist — create an empty **Pages** project named `futuremod-studio`, or edit `projectName` in the workflow).
+2. Create an **API token** with **Account** → **Cloudflare Pages** → **Edit** (or **Admin** for simplicity).
+3. In GitHub → repo **Settings** → **Secrets and variables** → **Actions**, add:
+   - `CLOUDFLARE_API_TOKEN` — the token.
+   - `CLOUDFLARE_ACCOUNT_ID` — from Cloudflare dashboard sidebar URL or **Workers & Pages** overview.
+
+Optional repository **Variables**: `VITE_FUTUREMOD_ROOT_DOMAIN` (e.g. `futuremod.site`) so production builds embed the correct apex domain.
+
+SPA fallback for client routes uses [`apps/studio/public/_redirects`](apps/studio/public/_redirects) (`/* → /index.html`).
+
+**Packages:** you do **not** deploy `packages/ui` or `packages/ai-context` to Pages separately — Studio’s build **bundles** them into `apps/studio/dist`. Publishing those packages to **npm** is optional and only needed if others install them as libraries. **`@futuremod/mcp-server`** is a **Node** MCP process (not static files); use `npx`/npm or a separate host if you want it in the cloud, not the Pages deploy.
+
 ## MCP
 
 ```json
