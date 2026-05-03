@@ -15,6 +15,7 @@ import {
   Input,
 } from "@futuremod/ui";
 import { useSession } from "../auth/SessionContext";
+import { GoogleSignInButton } from "../auth/GoogleSignInButton";
 
 export function SignupPage() {
   const { user, loading, signUp } = useSession();
@@ -102,6 +103,15 @@ export function SignupPage() {
             <Button type="submit" className="w-full" disabled={submitting}>
               {submitting ? "Creating account…" : "Create account"}
             </Button>
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t border-border" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-card px-2 text-muted-foreground">or</span>
+              </div>
+            </div>
+            <GoogleSignInButton />
             <p className="text-center text-sm text-muted-foreground">
               Already have an account?{" "}
               <Link to="/login" className="font-medium text-primary underline-offset-4 hover:underline">
