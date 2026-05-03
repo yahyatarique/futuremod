@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ExternalLink, Eye, Pencil, Plus, Globe } from "lucide-react";
 import {
@@ -15,33 +15,56 @@ import {
   cn,
 } from "@futuremod/ui";
 import { useSession } from "../auth/SessionContext";
-import { addProject, listProjects, type StoredProject } from "../projects/project-storage";
+import {
+  addProject,
+  listProjects,
+  type StoredProject,
+} from "../projects/project-db";
 import { getFuturemodRootDomain } from "../lib/project-site";
 
 export function DashboardPage() {
   const { user } = useSession();
   const navigate = useNavigate();
   const rootDomain = getFuturemodRootDomain();
-  const [projects, setProjects] = useState<StoredProject[]>(() =>
-    listProjects(user!.userId)
-  );
+
+  const [projects, setProjects] = useState<StoredProject[]>([]);
+  const [loadingProjects, setLoadingProjects] = useState(true);
   const [newTitle, setNewTitle] = useState("");
   const [creating, setCreating] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const refresh = useCallback(() => {
-    setProjects(listProjects(user!.userId));
+  const refresh = useCallback(async () => {
+    if (!user) return;
+    try {
+      const data = await listProjects(user.userId);
+      setProjects(data);
+    } catch (err) {
+      console.error("[FutureMod] failed to load projects", err);
+      setError("Could not load projects.");
+    } finally {
+      setLoadingProjects(false);
+    }
   }, [user]);
 
-  const createProject = () => {
-    if (!newTitle.trim()) return;
+  // Load on mount
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  const createProject = async () => {
+    if (!newTitle.trim() || !user) return;
     setCreating(true);
+    setError(null);
     try {
-      const p = addProject(user!.userId, newTitle.trim());
+      const p = await addProject(user.userId, newTitle.trim());
       setNewTitle("");
       setShowForm(false);
-      refresh();
+      await refresh();
       navigate(`/projects/${p.slug}/editor`);
+    } catch (err) {
+      console.error("[FutureMod] failed to create project", err);
+      setError("Could not create project. Please try again.");
     } finally {
       setCreating(false);
     }
@@ -65,6 +88,13 @@ export function DashboardPage() {
           New project
         </Button>
       </div>
+
+      {/* Error banner */}
+      {error && (
+        <p className="rounded-md border border-destructive/40 bg-destructive/10 px-4 py-2 text-sm text-destructive">
+          {error}
+        </p>
+      )}
 
       {/* Inline create form */}
       {showForm && (
@@ -97,7 +127,16 @@ export function DashboardPage() {
       )}
 
       {/* Project grid */}
-      {projects.length === 0 ? (
+      {loadingProjects ? (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {[0, 1, 2].map((i) => (
+            <div
+              key={i}
+              className="h-44 rounded-xl border border-border bg-muted/30 animate-pulse"
+            />
+          ))}
+        </div>
+      ) : projects.length === 0 ? (
         <EmptyState
           title="No projects yet"
           description="Create your first project and start building your public page."
