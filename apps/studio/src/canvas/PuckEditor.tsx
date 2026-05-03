@@ -4,6 +4,7 @@ import { Eye, FolderOpen } from "lucide-react";
 import { Puck } from "@measured/puck";
 import "@measured/puck/puck.css";
 import { buttonVariants, cn } from "@futuremod/ui";
+import { supabase } from "../lib/supabase";
 import { puckConfig } from "./puck-config";
 import { DataPanel } from "../ui/DataPanel";
 import { loadPageData, savePageData } from "../persistence/puck-storage";
@@ -121,9 +122,15 @@ export function PuckEditor({
       onPublish={async (data) => {
         savePageData(persistenceKey, data);
         try {
+          const { data: { session } } = await supabase.auth.getSession();
           const res = await fetch("/api/publish", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: {
+              "Content-Type": "application/json",
+              ...(session?.access_token
+                ? { Authorization: `Bearer ${session.access_token}` }
+                : {}),
+            },
             body: JSON.stringify({ projectSlug, pageId, data }),
           });
           if (!res.ok) throw new Error(await res.text());

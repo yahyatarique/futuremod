@@ -28,6 +28,12 @@ not_found_handling = "single-page-application"
 # inject __PAGE_DATA__ before falling through to the static SPA assets.
 run_worker_first = true
 
+# Non-secret Supabase config — used by the worker to verify JWTs on /api/publish.
+# The anon key is safe to expose publicly (it is used client-side too).
+[vars]
+SUPABASE_URL = "https://ykrhexxljurjbowzfpeh.supabase.co"
+SUPABASE_ANON_KEY = "sb_publishable_LWSMdLy-P0OO1Gw3FXvePQ_exKLCXK_"
+
 [[kv_namespaces]]
 binding = "PAGES_KV"
 id = "bf2b9ac82f054fe0b42ce5ea16ec1d12"

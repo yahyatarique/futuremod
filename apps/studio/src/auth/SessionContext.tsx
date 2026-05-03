@@ -2,16 +2,17 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
 } from "react";
+import type { User } from "@supabase/supabase-js";
+import { supabase } from "../lib/supabase";
 
-/**
- * Demo auth only: credentials live in localStorage. Replace with real OAuth / session API.
- */
-const SESSION_KEY = "futuremod-demo-session";
-const ACCOUNTS_KEY = "futuremod-demo-accounts";
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
 
 export interface SessionUser {
   userId: string;
@@ -19,100 +20,115 @@ export interface SessionUser {
   name: string;
 }
 
-type AccountRecord = Record<string, { userId: string; name: string; password: string }>;
-
-function readAccounts(): AccountRecord {
-  try {
-    return JSON.parse(localStorage.getItem(ACCOUNTS_KEY) ?? "{}") as AccountRecord;
-  } catch {
-    return {};
-  }
-}
-
-function writeAccounts(a: AccountRecord) {
-  try {
-    localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(a));
-  } catch {
-    /* ignore */
-  }
-}
-
-function readSession(): SessionUser | null {
-  try {
-    const raw = localStorage.getItem(SESSION_KEY);
-    if (!raw) return null;
-    return JSON.parse(raw) as SessionUser;
-  } catch {
-    return null;
-  }
-}
-
-function writeSession(user: SessionUser | null) {
-  try {
-    if (user) localStorage.setItem(SESSION_KEY, JSON.stringify(user));
-    else localStorage.removeItem(SESSION_KEY);
-  } catch {
-    /* ignore */
-  }
-}
-
 interface SessionContextValue {
   user: SessionUser | null;
-  signIn: (email: string, password: string) => { ok: true } | { ok: false; error: string };
-  signUp: (name: string, email: string, password: string) => { ok: true } | { ok: false; error: string };
-  signOut: () => void;
+  /** True while the initial Supabase session is being restored from storage. */
+  loading: boolean;
+  signIn: (
+    email: string,
+    password: string
+  ) => Promise<{ ok: true } | { ok: false; error: string }>;
+  signUp: (
+    name: string,
+    email: string,
+    password: string
+  ) => Promise<
+    | { ok: true; needsConfirmation: false }
+    | { ok: true; needsConfirmation: true }
+    | { ok: false; error: string }
+  >;
+  signOut: () => Promise<void>;
 }
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function toSessionUser(user: User): SessionUser {
+  return {
+    userId: user.id,
+    email: user.email ?? "",
+    name:
+      (user.user_metadata?.name as string | undefined) ??
+      (user.user_metadata?.full_name as string | undefined) ??
+      user.email?.split("@")[0] ??
+      "Member",
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Context
+// ---------------------------------------------------------------------------
 
 export const SessionContext = createContext<SessionContextValue | null>(null);
 
 export function SessionProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<SessionUser | null>(() => readSession());
+  const [user, setUser] = useState<SessionUser | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const signIn = useCallback((email: string, password: string) => {
-    const normalized = email.trim().toLowerCase();
-    const accounts = readAccounts();
-    const row = accounts[normalized];
-    if (!row || row.password !== password) {
-      return { ok: false as const, error: "We couldn’t sign you in. Check your email and password." };
-    }
-    const next = { userId: row.userId, email: normalized, name: row.name };
-    writeSession(next);
-    setUser(next);
-    return { ok: true as const };
+  // Restore session on mount and listen for auth state changes.
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ? toSessionUser(session.user) : null);
+      setLoading(false);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setUser(session?.user ? toSessionUser(session.user) : null);
+      }
+    );
+
+    return () => subscription.unsubscribe();
   }, []);
 
-  const signUp = useCallback((name: string, email: string, password: string) => {
-    const normalized = email.trim().toLowerCase();
-    if (password.length < 8) {
-      return { ok: false as const, error: "Use at least 8 characters for your password." };
-    }
-    const accounts = readAccounts();
-    if (accounts[normalized]) {
-      return { ok: false as const, error: "An account with this email already exists." };
-    }
-    const userId = crypto.randomUUID();
-    accounts[normalized] = { userId, name: name.trim() || "Member", password };
-    writeAccounts(accounts);
-    const next = { userId, email: normalized, name: name.trim() || "Member" };
-    writeSession(next);
-    setUser(next);
-    return { ok: true as const };
-  }, []);
+  const signIn = useCallback(
+    async (email: string, password: string) => {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) {
+        return {
+          ok: false as const,
+          error: "We couldn't sign you in. Check your email and password.",
+        };
+      }
+      return { ok: true as const };
+    },
+    []
+  );
 
-  const signOut = useCallback(() => {
-    writeSession(null);
-    setUser(null);
+  const signUp = useCallback(
+    async (name: string, email: string, password: string) => {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { data: { name: name.trim() || undefined } },
+      });
+      if (error) {
+        return { ok: false as const, error: error.message };
+      }
+      // Supabase returns a session immediately when email confirmation is
+      // disabled; otherwise session is null until the user confirms.
+      const needsConfirmation = !data.session;
+      return { ok: true as const, needsConfirmation };
+    },
+    []
+  );
+
+  const signOut = useCallback(async () => {
+    await supabase.auth.signOut();
   }, []);
 
   const value = useMemo(
-    () => ({ user, signIn, signUp, signOut }) satisfies SessionContextValue,
-    [user, signIn, signUp, signOut]
+    () => ({ user, loading, signIn, signUp, signOut }),
+    [user, loading, signIn, signUp, signOut]
   );
 
-  return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
+  return (
+    <SessionContext.Provider value={value}>{children}</SessionContext.Provider>
+  );
 }
 
-/** Safe where the dashboard shell isn’t mounted (e.g. legacy standalone subdomain editor). */
+/** Safe to call outside the dashboard shell (e.g. standalone subdomain editor). */
 export function useOptionalSession() {
   return useContext(SessionContext);
 }

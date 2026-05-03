@@ -7,12 +7,38 @@ interface KVNamespace {
 interface Env {
   PAGES_KV: KVNamespace;
   ASSETS: { fetch(request: Request): Promise<Response> };
+  SUPABASE_URL: string;
+  SUPABASE_ANON_KEY: string;
 }
 
 interface PublishBody {
   projectSlug: string;
   pageId: string;
   data: unknown;
+}
+
+/**
+ * Validates a Supabase access token by calling the Supabase Auth user endpoint.
+ * Returns the user id on success, null on failure.
+ */
+async function getSupabaseUserId(
+  request: Request,
+  supabaseUrl: string,
+  anonKey: string
+): Promise<string | null> {
+  const auth = request.headers.get("Authorization");
+  if (!auth?.startsWith("Bearer ")) return null;
+  const token = auth.slice(7);
+  try {
+    const res = await fetch(`${supabaseUrl}/auth/v1/user`, {
+      headers: { Authorization: `Bearer ${token}`, apikey: anonKey },
+    });
+    if (!res.ok) return null;
+    const user = (await res.json()) as { id?: string };
+    return user.id ?? null;
+  } catch {
+    return null;
+  }
 }
 
 // Subdomains that belong to the studio itself — never treated as project pages.
@@ -38,6 +64,10 @@ export default {
 
     // ── POST /api/publish ──────────────────────────────────────────────────
     if (url.pathname === "/api/publish" && request.method === "POST") {
+      const userId = await getSupabaseUserId(request, env.SUPABASE_URL, env.SUPABASE_ANON_KEY);
+      if (!userId) {
+        return Response.json({ error: "Unauthorized" }, { status: 401 });
+      }
       const body = (await request.json()) as PublishBody;
       if (!body.projectSlug || !body.pageId || !body.data) {
         return Response.json({ error: "Missing projectSlug, pageId, or data" }, { status: 400 });

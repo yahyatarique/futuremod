@@ -17,27 +17,56 @@ import {
 import { useSession } from "../auth/SessionContext";
 
 export function SignupPage() {
-  const { user, signUp } = useSession();
+  const { user, loading, signUp } = useSession();
   const navigate = useNavigate();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [needsConfirmation, setNeedsConfirmation] = useState(false);
 
-  if (user) {
+  if (!loading && user) {
     return <Navigate to="/dashboard" replace />;
   }
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError(null);
-    const res = signUp(name, email, password);
+    setSubmitting(true);
+    const res = await signUp(name, email, password);
+    setSubmitting(false);
     if (!res.ok) {
       setError(res.error);
       return;
     }
+    if (res.needsConfirmation) {
+      setNeedsConfirmation(true);
+      return;
+    }
     navigate("/dashboard", { replace: true });
   };
+
+  if (needsConfirmation) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-muted/30 p-4">
+        <Card className="w-full max-w-md border-border/80 shadow-lg">
+          <CardHeader className="space-y-1 text-center">
+            <CardTitle className="text-2xl font-bold tracking-tight">Check your email</CardTitle>
+            <CardDescription>
+              We sent a confirmation link to <strong>{email}</strong>. Click it to activate your account,
+              then sign in.
+            </CardDescription>
+          </CardHeader>
+          <CardFooter className="justify-center">
+            <Link to="/login" className="font-medium text-primary underline-offset-4 hover:underline text-sm">
+              Back to sign in
+            </Link>
+          </CardFooter>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted/30 p-4">
@@ -70,8 +99,8 @@ export function SignupPage() {
             </FormField>
           </CardContent>
           <CardFooter className="flex flex-col gap-3">
-            <Button type="submit" className="w-full">
-              Create account
+            <Button type="submit" className="w-full" disabled={submitting}>
+              {submitting ? "Creating account…" : "Create account"}
             </Button>
             <p className="text-center text-sm text-muted-foreground">
               Already have an account?{" "}

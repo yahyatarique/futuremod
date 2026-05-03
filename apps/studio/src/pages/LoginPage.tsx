@@ -17,20 +17,23 @@ import {
 import { useSession } from "../auth/SessionContext";
 
 export function LoginPage() {
-  const { user, signIn } = useSession();
+  const { user, loading, signIn } = useSession();
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
-  if (user) {
+  if (!loading && user) {
     return <Navigate to="/dashboard" replace />;
   }
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError(null);
-    const res = signIn(email, password);
+    setSubmitting(true);
+    const res = await signIn(email, password);
+    setSubmitting(false);
     if (!res.ok) {
       setError(res.error);
       return;
@@ -66,8 +69,8 @@ export function LoginPage() {
             </FormField>
           </CardContent>
           <CardFooter className="flex flex-col gap-3">
-            <Button type="submit" className="w-full">
-              Sign in
+            <Button type="submit" className="w-full" disabled={submitting}>
+              {submitting ? "Signing in…" : "Sign in"}
             </Button>
             <p className="text-center text-sm text-muted-foreground">
               New here?{" "}
