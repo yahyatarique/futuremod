@@ -69,41 +69,41 @@ Deploy the same Studio build behind a wildcard DNS record (`*.futuremod.site`) a
 | `VITE_FUTUREMOD_PROJECT_SLUG` | **Local only:** pretend to be a named project without DNS. |
 | `VITE_TLDRAW_LICENSE_KEY` | **Production:** [tldraw SDK](https://tldraw.dev/sdk-features/license-key) requires a key on HTTPS / non-localhost. Get a [trial](https://tldraw.dev/get-a-license/trial), [hobby](https://tldraw.dev/get-a-license/hobby), or commercial license; set this at **build time** (GitHub secret or Cloudflare build env). Safe to embed (domain-bound). |
 
-### CI & Cloudflare Pages (GitHub Actions)
+### CI & Cloudflare Workers (GitHub Actions)
+
+Hosted Studio uses **Wrangler** so [`apps/studio/wrangler.toml`](apps/studio/wrangler.toml) routes (**`futuremod.site`** + **`*.futuremod.site`**) and [`apps/studio/src/worker.ts`](apps/studio/src/worker.ts) actually run on the edge. Uploading **`dist/`** alone (classic **Pages direct upload**) **does not** deploy that Worker or attach those domains.
 
 Workflows in [`.github/workflows`](.github/workflows):
 
 | Workflow | When |
 |----------|------|
 | `ci.yml` | Push / PR to `main` — `pnpm install --frozen-lockfile` + `pnpm build`. |
-| `deploy-cloudflare-pages.yml` | Push to `main` or manual **workflow_dispatch** — publishes `apps/studio/dist` to **Cloudflare Pages**. |
+| `deploy-cloudflare-worker.yml` | Push to `main` or manual **workflow_dispatch** — **`wrangler deploy`** from `apps/studio` (= Worker + assets + routes). |
 
 **One-time setup**
 
-1. In [Cloudflare Dashboard](https://dash.cloudflare.com/) → **Workers & Pages** → **Create** → **Pages** → connect GitHub *or* rely on the GitHub Action only (project must exist — create an empty **Pages** project named `futuremod-studio`, or edit `projectName` in the workflow).
-2. Create an **API token** with **Account** → **Cloudflare Pages** → **Edit** (or **Admin** for simplicity).
+1. Ensure a **Workers** (or Workers + Assets) project exists whose name matches `name` in [`wrangler.toml`](apps/studio/wrangler.toml) (default **`futuremod-studio`**).
+2. Create an API token able to deploy Workers **and** manage zone DNS/routes used by `wrangler.toml` (e.g. template **Edit Cloudflare Workers** plus **DNS** / **Zones** scopes for **`futuremod.site`**, or a broad **Administrator** token while iterating).
 3. In GitHub → repo **Settings** → **Secrets and variables** → **Actions**, add:
-   - `CLOUDFLARE_API_TOKEN` — the token.
-   - `CLOUDFLARE_ACCOUNT_ID` — from Cloudflare dashboard sidebar URL or **Workers & Pages** overview.
-   - `VITE_TLDRAW_LICENSE_KEY` — **Secret** (optional but required for tldraw in production); same value as in [tldraw license docs](https://tldraw.dev/sdk-features/license-key).
+   - `CLOUDFLARE_API_TOKEN` — that token.
+   - `CLOUDFLARE_ACCOUNT_ID` — Workers & Pages overview or account sidebar.
+   - `VITE_TLDRAW_LICENSE_KEY` — **Secret** (recommended for production tldraw); see [tldraw license docs](https://tldraw.dev/sdk-features/license-key).
 
-Optional repository **Variables**: `VITE_FUTUREMOD_ROOT_DOMAIN` (e.g. `futuremod.site`) so production builds embed the correct apex domain.
+Optional **Variables**: `VITE_FUTUREMOD_ROOT_DOMAIN` (e.g. `futuremod.site`).
 
-For **Cloudflare dashboard builds** (not only GitHub Actions), add **`VITE_TLDRAW_LICENSE_KEY`** under environment variables used during the **build** step before `pnpm build`.
+If the Cloudflare dashboard is also wired to **build from Git** for a **Pages**-only pipeline, disable that or aim it elsewhere so production traffic uses this **Wrangler** deploy (otherwise **`futuremod.site` can stay tied to static Pages** with no `worker.ts`).
 
-**Cloudflare “application” deploy with `wrangler deploy`:** Running plain `npx wrangler deploy` from the repo root fails in a **pnpm workspace**. Point Wrangler at Studio with **`--cwd`** (still runs from monorepo root — good for dashboard defaults):
+**Manual deploy:**
 
 ```bash
 npx wrangler deploy --cwd apps/studio
 ```
 
-Same thing via workspace script after `pnpm install`: **`pnpm deploy:studio`**.
+Same via **`pnpm deploy:studio`** after `pnpm install`.
 
-(Equivalent: **`cd apps/studio && npx wrangler deploy`**. [`apps/studio/wrangler.toml`](apps/studio/wrangler.toml) is loaded from that cwd.)
+SPA fallback uses `not_found_handling = "single-page-application"` in [`wrangler.toml`](apps/studio/wrangler.toml). Do **not** add a `_redirects` catch‑all that loops ([error 10021](https://developers.cloudflare.com/workers/observability/errors/#validation-errors-10021)).
 
-Ensure `wrangler.toml` **`name`** matches your Cloudflare Workers project name. SPA routing uses `not_found_handling = "single-page-application"` in [`wrangler.toml`](apps/studio/wrangler.toml). Do **not** ship a Netlify-style `public/_redirects` catch‑all (`/* → /index.html 200`): Workers static‑asset uploads treat that as an **invalid / infinite‑loop redirect** ([error 10021](https://developers.cloudflare.com/workers/observability/errors/#validation-errors-10021)). For GitHub-deployed **Pages** only (no Wrangler SPA), configure SPA fallback in the Pages project or provider-specific redirects instead.
-
-**Packages:** you do **not** deploy `packages/ui` or `packages/ai-context` to Pages separately — Studio’s build **bundles** them into `apps/studio/dist`. Publishing those packages to **npm** is optional and only needed if others install them as libraries. **`@futuremod/mcp-server`** is a **Node** MCP process (not static files); use `npx`/npm or a separate host if you want it in the cloud, not the Pages deploy.
+**Packages:** Studio bundles `@futuremod/ui`; **`@futuremod/mcp-server`** is separate (Node MCP), not this deploy.
 
 ## MCP
 
