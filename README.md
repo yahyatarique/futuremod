@@ -41,41 +41,78 @@ pnpm --filter @futuremod/mcp-server start
 
 [apps/studio](apps/studio) is Vite + React. Structure:
 
-- **Project** — `{project}.futuremod.site` for public URLs; routing uses **`/projects/:slug/...`** in the dashboard (`localhost` / apex).
-- **Page** — named documents (`userId` + `pageId`); Puck stores layout JSON keyed per project/account.
-- **Editor** — **Puck** with **@futuremod/ui** blocks and the **Data panel** (`DataPanel.tsx`) for project slug, page switching, sample queries (see [`placement.ts`](apps/studio/src/ai/placement.ts) for programmatic placement helpers).
-- **Dashboard & auth** — routes in [`AppRoutes.tsx`](apps/studio/src/routes/AppRoutes.tsx): `/login`, `/signup`, `/dashboard`, **`/projects/:slug/editor`**, **`/projects/:slug/preview`**. **Sign-up is demo-only** (browser `localStorage`); swap for OAuth + API when wired.
-- **Standalone editor** — visiting **`{project}.{root}`** without server-injected **`__PAGE_DATA__`** still mounts [`StandaloneStudioApp.tsx`](apps/studio/src/StandaloneStudioApp.tsx) (same Puck shell as before dashboards).
+- **Project** — `{project}.futuremod.site` for public URLs; routing uses **`/projects/:slug/...`** in the dashboard (`localhost` / apex). Projects are stored in Supabase Postgres (`projects` table) and scoped to the authenticated user.
+- **Page** — named documents (`pageId`); Puck stores layout JSON keyed per project in browser `localStorage` (draft) and Cloudflare KV + Supabase (`pages` table) on publish.
+- **Editor** — **Puck** with **@futuremod/ui** blocks and the **Data panel** (`DataPanel.tsx`) for project slug, page switching, and sample queries. The Puck **root** config wraps all blocks in a configurable centred container (max-width, padding) so the editor preview and the live published page look identical.
+- **Dashboard & auth** — routes in [`AppRoutes.tsx`](apps/studio/src/routes/AppRoutes.tsx): `/login`, `/signup`, `/dashboard`, **`/projects/:slug/editor`**, **`/projects/:slug/preview`**. Auth is powered by **Supabase Auth** with email/password and **Google OAuth**.
+- **Standalone editor** — visiting **`{project}.{root}`** without server-injected **`__PAGE_DATA__`** still mounts [`StandaloneStudioApp.tsx`](apps/studio/src/StandaloneStudioApp.tsx) (same Puck shell as the dashboard).
 
 Also:
 
 - **Data sources and queries** — sample datasets + SQL-shaped definitions; connect your API for live databases (credentials stay server-side).
 - **Palette + [`placeFuturemodWidget`](apps/studio/src/ai/placement.ts)** — hooks for AI-driven composition.
-- **In-app preview route** — **`/projects/:slug/preview`** renders read-only Puck (`Render`) side-by-side workflow with the editor.
+- **In-app preview route** — **`/projects/:slug/preview`** renders read-only Puck (`Render`) with the same root container as the live page.
 
 ```bash
 pnpm studio
 ```
 
-Open [http://localhost:5173](http://localhost:5173) — **create an account** (demo) or sign in, then pick or create a project. For hosted SQL, expose a secure query API; keep secrets off the client.
+Open [http://localhost:5173](http://localhost:5173) — sign in with Google or email/password, then pick or create a project.
+
+### Authentication (Supabase Auth)
+
+Studio uses **Supabase Auth** for all sign-in flows:
+
+| Flow | Notes |
+|------|-------|
+| Email + password | Standard sign-up with optional email confirmation |
+| Google OAuth | One-click sign-in; redirect back to `/dashboard` |
+
+Configure in [`src/lib/supabase.ts`](apps/studio/src/lib/supabase.ts). Set the **Site URL** to `https://futuremod.site` and add `https://futuremod.site/**` to Redirect URLs in the Supabase Auth settings. For Google OAuth, register the Supabase callback URL (`https://<project>.supabase.co/auth/v1/callback`) as an authorised redirect in Google Cloud Console.
+
+### Database (Supabase Postgres)
+
+Project and page metadata live in Supabase Postgres. Run the migration before first use:
+
+1. Open **[Supabase SQL editor](https://supabase.com/dashboard/project/_/sql/new)**
+2. Paste and run [`supabase/migrations/20260504_init.sql`](supabase/migrations/20260504_init.sql)
+
+**Schema:**
+
+| Table | Key columns | Notes |
+|-------|-------------|-------|
+| `projects` | `user_id`, `slug`, `title` | One row per project; unique on `(user_id, slug)` |
+| `pages` | `project_id`, `page_id`, `published_data jsonb`, `published_at` | Snapshot written on every Publish |
+
+Row Level Security (RLS) is enabled on both tables — users can only read and write their own rows.
+
+**Publish flow:** `POST /api/publish` (worker) writes the Puck data to **Cloudflare KV** (fast edge read) and also upserts a row in `pages` via the Supabase REST API. KV remains the authoritative source for serving live pages; the DB record is for dashboard listing and future querying.
 
 ### Hosting: one subdomain per project
 
-Each **project** is intended to be served at **`{project}.futuremod.site`**. The studio reads the project slug from the hostname (see [`project-site.ts`](apps/studio/src/lib/project-site.ts)), shows it in the shell, and namespaces persistence keys with it. The apex domain (`futuremod.site` / `www`) is treated as non-project (“root”) until you redirect users to a project host.
+Each **project** is served at **`{project}.futuremod.site`**. The studio reads the project slug from the hostname (see [`project-site.ts`](apps/studio/src/lib/project-site.ts)), shows it in the shell, and namespaces persistence keys with it. Visiting an unclaimed subdomain redirects to `futuremod.site`.
 
-Deploy the same Studio build behind a wildcard DNS record (`*.futuremod.site`) and TLS for `*.futuremod.site`. Optional env vars:
+Deploy the same Studio build behind a wildcard DNS record (`*.futuremod.site`) and TLS for `*.futuremod.site`. Required env vars:
 
 | Variable | Purpose |
 |----------|---------|
-| `VITE_FUTUREMOD_ROOT_DOMAIN` | Defaults to `futuremod.site` if unset. |
-| `VITE_FUTUREMOD_PROJECT_SLUG` | **Local only:** pretend to be a named project without DNS. |
-| `VITE_TLDRAW_LICENSE_KEY` | **Production:** [tldraw SDK](https://tldraw.dev/sdk-features/license-key) requires a key on HTTPS / non-localhost. Get a [trial](https://tldraw.dev/get-a-license/trial), [hobby](https://tldraw.dev/get-a-license/hobby), or commercial license; set at **build time** (Cloudflare dashboard build env vars, local shell, etc.). Safe to embed (domain-bound). |
+| `VITE_SUPABASE_URL` | Supabase project URL (`https://<ref>.supabase.co`) |
+| `VITE_SUPABASE_ANON_KEY` | Supabase publishable anon key |
+| `VITE_FUTUREMOD_ROOT_DOMAIN` | Defaults to `futuremod.site` if unset |
+| `VITE_FUTUREMOD_PROJECT_SLUG` | **Local only:** pretend to be a named project without DNS |
+
+Worker vars (set in `wrangler.toml` or Cloudflare dashboard):
+
+| Variable | Purpose |
+|----------|---------|
+| `SUPABASE_URL` | Same Supabase project URL |
+| `SUPABASE_ANON_KEY` | Same anon key (used server-side to verify JWTs) |
 
 ### Deploy Studio (Wrangler, no GitHub Actions required)
 
 Hosted Studio is a **Worker + static assets** app: [`apps/studio/wrangler.toml`](apps/studio/wrangler.toml) attaches **`futuremod.site`** and **`*.futuremod.site`**, and [`apps/studio/src/worker.ts`](apps/studio/src/worker.ts) runs on the edge. That only ships when **`wrangler deploy`** runs against **`apps/studio`**.
 
-Uploading **`dist/`** by itself (classic **Pages “upload folder only”**) **does not** deploy **`worker.ts`** or **`[[routes]]`**, so custom domains won’t behave like Studio.
+Uploading **`dist/`** by itself (classic **Pages "upload folder only"**) **does not** deploy **`worker.ts`** or **`[[routes]]`**, so custom domains won't behave like Studio.
 
 **From your laptop (usual flow)**
 
@@ -87,15 +124,17 @@ pnpm deploy:studio
 
 Equivalent: **`npx wrangler deploy --cwd apps/studio`** (see root [`package.json`](package.json)). Sign in once with **`npx wrangler login`**, or set **`CLOUDFLARE_API_TOKEN`** (Workers deploy permission, plus DNS/zone scopes if **`wrangler.toml`** uses **`zone_name`**) for non-interactive environments you control outside GitHub.
 
-**Cloudflare dashboard + Git:** You can skip GitHub Actions entirely. Connect the repo under **Workers & Pages** and set build/install commands so **`dist/`** exists, then **`wrangler deploy`** runs with **`working directory`/`cd`** set to **`apps/studio`** (monorepo). After a successful **`wrangler deploy`**, **`wrangler.toml`** updates routes and Worker code.
+**Cloudflare dashboard + Git:** Connect the repo under **Workers & Pages** and set build/install commands so **`dist/`** exists, then **`wrangler deploy`** runs with `working directory` set to **`apps/studio`** (monorepo). After a successful **`wrangler deploy`**, **`wrangler.toml`** updates routes and Worker code.
 
-SPA fallback uses `not_found_handling = "single-page-application"` in [`wrangler.toml`](apps/studio/wrangler.toml). Do **not** add a **`_redirects`** catch‑all that loops ([error 10021](https://developers.cloudflare.com/workers/observability/errors/#validation-errors-10021)).
+SPA fallback uses `not_found_handling = "single-page-application"` in [`wrangler.toml`](apps/studio/wrangler.toml). Do **not** add a **`_redirects`** catch-all that loops ([error 10021](https://developers.cloudflare.com/workers/observability/errors/#validation-errors-10021)).
 
 **Packages:** Studio bundles **`@futuremod/ui`** into **`apps/studio/dist`**; **`@futuremod/mcp-server`** is a separate Node MCP process, not this deploy.
 
 ## MCP
 
 This repo includes **[`.cursor/mcp.json`](.cursor/mcp.json)** so Cursor loads **`@futuremod/mcp-server`** from the workspace via [`scripts/run-futuremod-mcp.cjs`](scripts/run-futuremod-mcp.cjs) (it builds **`packages/mcp-server`** once if **`dist/`** is missing). Restart Cursor after changes.
+
+A **[`.mcp.json`](.mcp.json)** is also included for Supabase MCP — it points at the project's Supabase instance so AI agents can query the schema and debug the database directly.
 
 Outside this workspace, once **`@futuremod/mcp-server`** is published, you can use:
 
@@ -115,9 +154,9 @@ Outside this workspace, once **`@futuremod/mcp-server`** is published, you can u
 
 ## Design Tokens
 
-| Token       | Light              | Dark               |
-|-------------|--------------------|--------------------|
-| Primary (cyan) | hsl(189 94% 36%) | hsl(189 94% 46%) |
-| Accent (red)  | hsl(0 84% 60%)   | hsl(0 84% 62%)   |
-| Background   | hsl(0 0% 98%)    | hsl(220 14% 6%)  |
-| Radius       | 10px              | 10px              |
+| Token          | Light              | Dark               |
+|----------------|--------------------|--------------------|
+| Primary (cyan) | hsl(189 94% 36%)   | hsl(189 94% 46%)   |
+| Accent (red)   | hsl(0 84% 60%)     | hsl(0 84% 62%)     |
+| Background     | hsl(0 0% 98%)      | hsl(220 14% 6%)    |
+| Radius         | 10px               | 10px               |
