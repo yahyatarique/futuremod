@@ -19,13 +19,13 @@ interface PublishBody {
 
 /**
  * Validates a Supabase access token by calling the Supabase Auth user endpoint.
- * Returns the user id on success, null on failure.
+ * Returns { userId, token } on success, null on failure.
  */
-async function getSupabaseUserId(
+async function verifySupabaseToken(
   request: Request,
   supabaseUrl: string,
   anonKey: string
-): Promise<string | null> {
+): Promise<{ userId: string; token: string } | null> {
   const auth = request.headers.get("Authorization");
   if (!auth?.startsWith("Bearer ")) return null;
   const token = auth.slice(7);
@@ -35,10 +35,62 @@ async function getSupabaseUserId(
     });
     if (!res.ok) return null;
     const user = (await res.json()) as { id?: string };
-    return user.id ?? null;
+    return user.id ? { userId: user.id, token } : null;
   } catch {
     return null;
   }
+}
+
+/**
+ * Upsert a publish event into the Supabase `projects` + `pages` tables.
+ * Uses the user's own JWT so RLS is enforced automatically.
+ * Failure is non-fatal — the KV write is the source-of-truth for serving.
+ */
+async function syncToDatabase(
+  supabaseUrl: string,
+  anonKey: string,
+  token: string,
+  userId: string,
+  projectSlug: string,
+  pageId: string,
+  data: unknown
+): Promise<void> {
+  const base = `${supabaseUrl}/rest/v1`;
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${token}`,
+    apikey: anonKey,
+    "Content-Type": "application/json",
+  };
+
+  // 1. Ensure the project row exists for this user + slug -------------------
+  //    `resolution=merge-duplicates` on the unique(user_id, slug) constraint
+  //    acts as upsert: insert if missing, do nothing if already there.
+  const projectRes = await fetch(`${base}/projects`, {
+    method: "POST",
+    headers: { ...headers, Prefer: "resolution=merge-duplicates,return=representation" },
+    body: JSON.stringify({
+      user_id: userId,
+      slug:    projectSlug,
+      title:   projectSlug,   // title placeholder; dashboard can rename later
+    }),
+  });
+  if (!projectRes.ok) return; // bail silently
+
+  const projects = (await projectRes.json()) as { id: string }[];
+  const projectId = projects[0]?.id;
+  if (!projectId) return;
+
+  // 2. Upsert the published page snapshot ----------------------------------
+  await fetch(`${base}/pages`, {
+    method: "POST",
+    headers: { ...headers, Prefer: "resolution=merge-duplicates,return=minimal" },
+    body: JSON.stringify({
+      project_id:     projectId,
+      page_id:        pageId,
+      published_data: data,
+      published_at:   new Date().toISOString(),
+    }),
+  });
 }
 
 // Subdomains that belong to the studio itself — never treated as project pages.
@@ -64,16 +116,30 @@ export default {
 
     // ── POST /api/publish ──────────────────────────────────────────────────
     if (url.pathname === "/api/publish" && request.method === "POST") {
-      const userId = await getSupabaseUserId(request, env.SUPABASE_URL, env.SUPABASE_ANON_KEY);
-      if (!userId) {
+      const auth = await verifySupabaseToken(request, env.SUPABASE_URL, env.SUPABASE_ANON_KEY);
+      if (!auth) {
         return Response.json({ error: "Unauthorized" }, { status: 401 });
       }
       const body = (await request.json()) as PublishBody;
       if (!body.projectSlug || !body.pageId || !body.data) {
         return Response.json({ error: "Missing projectSlug, pageId, or data" }, { status: 400 });
       }
+
+      // Write to KV (fast edge read layer)
       const key = `${body.projectSlug}:${body.pageId}`;
       await env.PAGES_KV.put(key, JSON.stringify(body.data));
+
+      // Mirror to Supabase DB (best-effort — KV is the serving source-of-truth)
+      await syncToDatabase(
+        env.SUPABASE_URL,
+        env.SUPABASE_ANON_KEY,
+        auth.token,
+        auth.userId,
+        body.projectSlug,
+        body.pageId,
+        body.data
+      ).catch((err) => console.error("[FutureMod] db sync failed", err));
+
       return Response.json({ ok: true, key });
     }
 
