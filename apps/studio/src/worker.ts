@@ -15,11 +15,28 @@ interface PublishBody {
   data: unknown;
 }
 
+// Subdomains that belong to the studio itself — never treated as project pages.
+const RESERVED_SLUGS = new Set(["studio", "www", "api", "local", "root"]);
+
+/**
+ * Returns the project slug if the request is coming from a project subdomain
+ * (e.g. `myproject.futuremod.site` → `"myproject"`), otherwise null.
+ */
+function projectSlugFromHost(hostname: string): string | null {
+  const parts = hostname.split(".");
+  // Match *.futuremod.site exactly
+  if (parts.length === 3 && parts[1] === "futuremod" && parts[2] === "site") {
+    const slug = parts[0];
+    return RESERVED_SLUGS.has(slug) ? null : slug;
+  }
+  return null;
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
 
-    // POST /api/publish  — save page JSON to KV
+    // ── POST /api/publish ──────────────────────────────────────────────────
     if (url.pathname === "/api/publish" && request.method === "POST") {
       const body = (await request.json()) as PublishBody;
       if (!body.projectSlug || !body.pageId || !body.data) {
@@ -30,7 +47,7 @@ export default {
       return Response.json({ ok: true, key });
     }
 
-    // GET /api/pages/:projectSlug/:pageId  — read page JSON from KV
+    // ── GET /api/pages/:project/:page ──────────────────────────────────────
     if (url.pathname.startsWith("/api/pages/") && request.method === "GET") {
       const parts = url.pathname.slice("/api/pages/".length).split("/");
       if (parts.length < 2) {
@@ -42,7 +59,41 @@ export default {
       return new Response(data, { headers: { "Content-Type": "application/json" } });
     }
 
-    // Everything else → static SPA assets
+    // ── Subdomain project-page renderer ───────────────────────────────────
+    // Requests to {project}.futuremod.site/{pageId} are served as published
+    // pages: we inject the Puck Data JSON into the HTML so the SPA can
+    // render in view mode without a round-trip.
+    const projectSlug = projectSlugFromHost(url.hostname);
+    if (projectSlug && request.method === "GET" && !url.pathname.startsWith("/assets/")) {
+      const pageId =
+        url.pathname === "/" || url.pathname === ""
+          ? "default"
+          : url.pathname.slice(1).split("/")[0] || "default";
+
+      const key = `${projectSlug}:${pageId}`;
+      const pageData = await env.PAGES_KV.get(key);
+
+      if (pageData) {
+        const indexResponse = await env.ASSETS.fetch(
+          new Request(new URL("/index.html", url).toString())
+        );
+        const html = await indexResponse.text();
+
+        // Safely inject page data — escape </ to prevent script injection.
+        const safe = pageData.replace(/</g, "\\u003c");
+        const injected = html.replace(
+          "</head>",
+          `<script>window.__PAGE_DATA__=${safe};</script></head>`
+        );
+
+        return new Response(injected, {
+          headers: { "Content-Type": "text/html;charset=UTF-8" },
+        });
+      }
+      // Page not found — fall through to the SPA (will show the editor shell)
+    }
+
+    // ── Static SPA fallback ────────────────────────────────────────────────
     return env.ASSETS.fetch(request);
   },
 };

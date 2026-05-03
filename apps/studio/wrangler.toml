@@ -1,6 +1,9 @@
 # Workers static assets deploy. Cloudflare build runs from monorepo root — use either:
 #   npx wrangler deploy --cwd apps/studio   OR   cd apps/studio && npx wrangler deploy
-# Set `name` to match your Cloudflare Workers/Pages-app project slug if needed.
+#
+# Subdomain renderer: add a wildcard custom domain in the Cloudflare dashboard
+# (Workers → futuremod-studio → Settings → Domains & Routes) pointing
+# *.futuremod.site to this worker so published project pages are served here.
 name = "futuremod-studio"
 main = "src/worker.ts"
 compatibility_date = "2026-05-03"
