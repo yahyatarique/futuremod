@@ -16,7 +16,14 @@
  *   get_llms_full_txt   — full reference for page-building tasks
  */
 
-import { registry, items, getItem, generateLlmsTxt, generateLlmsFullTxt } from "@futuremod/ai-context";
+import {
+  registry,
+  items,
+  getItem,
+  generateLlmsTxt,
+  generateLlmsFullTxt,
+  type RegistryItem,
+} from "@futuremod/ai-context";
 
 // ── MCP types (minimal, no external dependency) ───────────────
 
@@ -94,13 +101,20 @@ function handleTool(name: string, params: Record<string, unknown>): unknown {
     case "search_components": {
       const q = (params.query as string).toLowerCase();
       const results = items.filter(
-        (item) =>
+        (item: RegistryItem) =>
           item.name.includes(q) ||
           item.title.toLowerCase().includes(q) ||
           item.description.toLowerCase().includes(q) ||
           item.type.includes(q)
       );
-      return { components: results.map(({ name, type, title, description }) => ({ name, type, title, description })) };
+      return {
+        components: results.map(({ name, type, title, description }: RegistryItem) => ({
+          name,
+          type,
+          title,
+          description,
+        })),
+      };
     }
 
     case "get_llms_txt":

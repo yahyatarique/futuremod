@@ -1,4 +1,4 @@
-import type { RegistryItem } from "../types";
+import type { RegistryItem } from "../types.js";
 
 export const emptyState: RegistryItem = {
   $schema: "https://ui.shadcn.com/schema/registry-item.json",
