@@ -10,11 +10,11 @@
     "typecheck": "tsc -b --noEmit"
   },
   "dependencies": {
-    "@tldraw/tlschema": "4.5.10",
+    "@futuremod/ai-context": "workspace:*",
     "@futuremod/ui": "workspace:*",
+    "@measured/puck": "^0.18.0",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "tldraw": "^4.5.10"
+    "react-dom": "^18.3.1"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

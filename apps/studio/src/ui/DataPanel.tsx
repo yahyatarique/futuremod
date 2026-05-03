@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import type React from "react";
 import { Button, Input, Label, Separator } from "@futuremod/ui";
 import { getFuturemodRootDomain } from "../lib/project-site";
 import { useDataStudio } from "../data/DataStudioContext";
@@ -43,7 +44,7 @@ export function DataPanel({
       </div>
       <div className="space-y-1">
         <Label htmlFor="user">User id</Label>
-        <Input id="user" value={userId} onChange={(e) => setUserId(e.target.value)} className="h-8 text-xs" />
+        <Input id="user" value={userId} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setUserId(e.target.value)} className="h-8 text-xs" />
       </div>
       <div className="space-y-1">
         <Label htmlFor="page">Page id</Label>
@@ -51,7 +52,7 @@ export function DataPanel({
           <Input
             id="page"
             value={pageInput}
-            onChange={(e) => setPageInput(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPageInput(e.target.value)}
             className="h-8 flex-1 text-xs"
           />
           <Button

@@ -52,20 +52,3 @@ export interface QueryResult {
   rows: Record<string, unknown>[];
 }
 
-/**
- * Metadata on frames placed on the **app canvas** (spatial layout per page).
- * Distinct from sketch markup: these shapes represent dashboard/UI composition.
- */
-export interface FuturemodShapeMeta {
-  component:
-    | "StatCard"
-    | "Table"
-    | "Card"
-    | "Alert"
-    | "EmptyState"
-    | "DashboardShell"
-    | "PageLayout";
-  title?: string;
-  queryId?: string;
-  dataSourceId?: string;
-}
