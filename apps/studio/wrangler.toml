@@ -9,6 +9,9 @@ name = "futuremod-studio"
 main = "src/worker.ts"
 compatibility_date = "2026-05-03"
 
+[build]
+command = "npm run build"
+
 [[routes]]
 pattern = "futuremod.site"
 custom_domain = true
