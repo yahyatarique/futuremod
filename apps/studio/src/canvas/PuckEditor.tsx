@@ -131,9 +131,18 @@ export function PuckEditor({
       data={initialData}
       onChange={(data) => savePageData(persistenceKey, data)}
       onPublish={async (data) => {
-        // Future: POST to Cloudflare KV via /api/publish
         savePageData(persistenceKey, data);
-        console.info("[FutureMod] page published", { persistenceKey, blocks: data.content.length });
+        try {
+          const res = await fetch("/api/publish", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ projectSlug, pageId, data }),
+          });
+          if (!res.ok) throw new Error(await res.text());
+          console.info("[FutureMod] published", { projectSlug, pageId, blocks: data.content.length });
+        } catch (err) {
+          console.error("[FutureMod] publish failed", err);
+        }
       }}
       overrides={{
         header: ({ actions }) => (
