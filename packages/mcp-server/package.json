@@ -1,0 +1,23 @@
+{
+  "name": "@futuremod/mcp-server",
+  "version": "0.1.0",
+  "description": "MCP server exposing the futuremod component registry to AI agents",
+  "type": "module",
+  "bin": {
+    "futuremod-mcp": "./dist/server.js"
+  },
+  "main": "./dist/server.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json --watch",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "clean": "rm -rf dist",
+    "start": "node dist/server.js"
+  },
+  "dependencies": {
+    "@futuremod/ai-context": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5"
+  }
+}
