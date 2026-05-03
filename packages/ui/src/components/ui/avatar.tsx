@@ -29,6 +29,8 @@ export interface AvatarProps
 const Avatar = React.forwardRef<HTMLDivElement, AvatarProps>(
   ({ className, size, src, alt, fallback, ...props }, ref) => {
     const [imgError, setImgError] = React.useState(false);
+    // Reset error state whenever src changes so a newly-entered URL is retried.
+    React.useEffect(() => { setImgError(false); }, [src]);
 
     return (
       <div ref={ref} className={cn(avatarVariants({ size }), className)} {...props}>
