@@ -67,43 +67,29 @@ Deploy the same Studio build behind a wildcard DNS record (`*.futuremod.site`) a
 |----------|---------|
 | `VITE_FUTUREMOD_ROOT_DOMAIN` | Defaults to `futuremod.site` if unset. |
 | `VITE_FUTUREMOD_PROJECT_SLUG` | **Local only:** pretend to be a named project without DNS. |
-| `VITE_TLDRAW_LICENSE_KEY` | **Production:** [tldraw SDK](https://tldraw.dev/sdk-features/license-key) requires a key on HTTPS / non-localhost. Get a [trial](https://tldraw.dev/get-a-license/trial), [hobby](https://tldraw.dev/get-a-license/hobby), or commercial license; set this at **build time** (GitHub secret or Cloudflare build env). Safe to embed (domain-bound). |
+| `VITE_TLDRAW_LICENSE_KEY` | **Production:** [tldraw SDK](https://tldraw.dev/sdk-features/license-key) requires a key on HTTPS / non-localhost. Get a [trial](https://tldraw.dev/get-a-license/trial), [hobby](https://tldraw.dev/get-a-license/hobby), or commercial license; set at **build time** (Cloudflare dashboard build env vars, local shell, etc.). Safe to embed (domain-bound). |
 
-### CI & Cloudflare Workers (GitHub Actions)
+### Deploy Studio (Wrangler, no GitHub Actions required)
 
-Hosted Studio uses **Wrangler** so [`apps/studio/wrangler.toml`](apps/studio/wrangler.toml) routes (**`futuremod.site`** + **`*.futuremod.site`**) and [`apps/studio/src/worker.ts`](apps/studio/src/worker.ts) actually run on the edge. Uploading **`dist/`** alone (classic **Pages direct upload**) **does not** deploy that Worker or attach those domains.
+Hosted Studio is a **Worker + static assets** app: [`apps/studio/wrangler.toml`](apps/studio/wrangler.toml) attaches **`futuremod.site`** and **`*.futuremod.site`**, and [`apps/studio/src/worker.ts`](apps/studio/src/worker.ts) runs on the edge. That only ships when **`wrangler deploy`** runs against **`apps/studio`**.
 
-Workflows in [`.github/workflows`](.github/workflows):
+Uploading **`dist/`** by itself (classic **Pages “upload folder only”**) **does not** deploy **`worker.ts`** or **`[[routes]]`**, so custom domains won’t behave like Studio.
 
-| Workflow | When |
-|----------|------|
-| `ci.yml` | Push / PR to `main` — `pnpm install --frozen-lockfile` + `pnpm build`. |
-| `deploy-cloudflare-worker.yml` | Push to `main` or manual **workflow_dispatch** — **`wrangler deploy`** from `apps/studio` (= Worker + assets + routes). |
-
-**One-time setup**
-
-1. Ensure a **Workers** (or Workers + Assets) project exists whose name matches `name` in [`wrangler.toml`](apps/studio/wrangler.toml) (default **`futuremod-studio`**).
-2. Create an API token able to deploy Workers **and** manage zone DNS/routes used by `wrangler.toml` (e.g. template **Edit Cloudflare Workers** plus **DNS** / **Zones** scopes for **`futuremod.site`**, or a broad **Administrator** token while iterating).
-3. In GitHub → repo **Settings** → **Secrets and variables** → **Actions**, add:
-   - `CLOUDFLARE_API_TOKEN` — that token.
-   - `CLOUDFLARE_ACCOUNT_ID` — Workers & Pages overview or account sidebar.
-   - `VITE_TLDRAW_LICENSE_KEY` — **Secret** (recommended for production tldraw); see [tldraw license docs](https://tldraw.dev/sdk-features/license-key).
-
-Optional **Variables**: `VITE_FUTUREMOD_ROOT_DOMAIN` (e.g. `futuremod.site`).
-
-If the Cloudflare dashboard is also wired to **build from Git** for a **Pages**-only pipeline, disable that or aim it elsewhere so production traffic uses this **Wrangler** deploy (otherwise **`futuremod.site` can stay tied to static Pages** with no `worker.ts`).
-
-**Manual deploy:**
+**From your laptop (usual flow)**
 
 ```bash
-npx wrangler deploy --cwd apps/studio
+pnpm install --frozen-lockfile
+pnpm build
+pnpm deploy:studio
 ```
 
-Same via **`pnpm deploy:studio`** after `pnpm install`.
+Equivalent: **`npx wrangler deploy --cwd apps/studio`** (see root [`package.json`](package.json)). Sign in once with **`npx wrangler login`**, or set **`CLOUDFLARE_API_TOKEN`** (Workers deploy permission, plus DNS/zone scopes if **`wrangler.toml`** uses **`zone_name`**) for non-interactive environments you control outside GitHub.
 
-SPA fallback uses `not_found_handling = "single-page-application"` in [`wrangler.toml`](apps/studio/wrangler.toml). Do **not** add a `_redirects` catch‑all that loops ([error 10021](https://developers.cloudflare.com/workers/observability/errors/#validation-errors-10021)).
+**Cloudflare dashboard + Git:** You can skip GitHub Actions entirely. Connect the repo under **Workers & Pages** and set build/install commands so **`dist/`** exists, then **`wrangler deploy`** runs with **`working directory`/`cd`** set to **`apps/studio`** (monorepo). After a successful **`wrangler deploy`**, **`wrangler.toml`** updates routes and Worker code.
 
-**Packages:** Studio bundles `@futuremod/ui`; **`@futuremod/mcp-server`** is separate (Node MCP), not this deploy.
+SPA fallback uses `not_found_handling = "single-page-application"` in [`wrangler.toml`](apps/studio/wrangler.toml). Do **not** add a **`_redirects`** catch‑all that loops ([error 10021](https://developers.cloudflare.com/workers/observability/errors/#validation-errors-10021)).
+
+**Packages:** Studio bundles **`@futuremod/ui`** into **`apps/studio/dist`**; **`@futuremod/mcp-server`** is a separate Node MCP process, not this deploy.
 
 ## MCP
 
