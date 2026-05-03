@@ -3,14 +3,10 @@ import { Link, Navigate, useNavigate } from "react-router-dom";
 import {
   Alert,
   AlertDescription,
-  AlertTitle,
   Button,
   Card,
   CardContent,
-  CardDescription,
   CardFooter,
-  CardHeader,
-  CardTitle,
   FormField,
   Input,
 } from "@futuremod/ui";
@@ -25,9 +21,7 @@ export function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  if (!loading && user) {
-    return <Navigate to="/dashboard" replace />;
-  }
+  if (!loading && user) return <Navigate to="/dashboard" replace />;
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -35,25 +29,34 @@ export function LoginPage() {
     setSubmitting(true);
     const res = await signIn(email, password);
     setSubmitting(false);
-    if (!res.ok) {
-      setError(res.error);
-      return;
-    }
+    if (!res.ok) { setError(res.error); return; }
     navigate("/dashboard", { replace: true });
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-muted/30 p-4">
-      <Card className="w-full max-w-md border-border/80 shadow-lg">
-        <CardHeader className="space-y-1 text-center">
-          <CardTitle className="text-2xl font-bold tracking-tight">Welcome back</CardTitle>
-          <CardDescription>Sign in to edit and publish your page.</CardDescription>
-        </CardHeader>
-        <form onSubmit={handleSubmit}>
-          <CardContent className="space-y-4">
+    <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
+      {/* Wordmark */}
+      <div className="mb-8 text-center">
+        <span className="text-3xl font-bold tracking-tight">FutureMod</span>
+        <p className="mt-1 text-sm text-muted-foreground">Sign in to edit and publish your page.</p>
+      </div>
+
+      <Card className="w-full max-w-sm shadow-md">
+        <CardContent className="space-y-3 pt-6">
+          {/* Google — primary CTA */}
+          <GoogleSignInButton />
+
+          {/* Divider */}
+          <div className="relative flex items-center gap-3 py-1">
+            <div className="h-px flex-1 bg-border" />
+            <span className="text-xs text-muted-foreground">or continue with email</span>
+            <div className="h-px flex-1 bg-border" />
+          </div>
+
+          {/* Email / password form */}
+          <form onSubmit={handleSubmit} className="space-y-3">
             {error && (
               <Alert variant="destructive">
-                <AlertTitle>Something went wrong</AlertTitle>
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
@@ -61,35 +64,22 @@ export function LoginPage() {
               <Input type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} />
             </FormField>
             <FormField label="Password" required>
-              <Input
-                type="password"
-                autoComplete="current-password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
+              <Input type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
             </FormField>
-          </CardContent>
-          <CardFooter className="flex flex-col gap-3">
-            <Button type="submit" className="w-full" disabled={submitting}>
+            <Button type="submit" className="w-full" variant="outline" disabled={submitting}>
               {submitting ? "Signing in…" : "Sign in"}
             </Button>
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t border-border" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-card px-2 text-muted-foreground">or</span>
-              </div>
-            </div>
-            <GoogleSignInButton />
-            <p className="text-center text-sm text-muted-foreground">
-              New here?{" "}
-              <Link to="/signup" className="font-medium text-primary underline-offset-4 hover:underline">
-                Create an account
-              </Link>
-            </p>
-          </CardFooter>
-        </form>
+          </form>
+        </CardContent>
+
+        <CardFooter className="justify-center pb-5">
+          <p className="text-center text-sm text-muted-foreground">
+            No account?{" "}
+            <Link to="/signup" className="font-medium text-primary underline-offset-4 hover:underline">
+              Create one free
+            </Link>
+          </p>
+        </CardFooter>
       </Card>
     </div>
   );
