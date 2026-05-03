@@ -19,7 +19,11 @@ zone_name = "futuremod.site"
 
 [assets]
 directory = "./dist/"
+binding = "ASSETS"
 not_found_handling = "single-page-application"
+# Always run the worker first so it can intercept subdomain requests and
+# inject __PAGE_DATA__ before falling through to the static SPA assets.
+run_worker_first = true
 
 [[kv_namespaces]]
 binding = "PAGES_KV"
