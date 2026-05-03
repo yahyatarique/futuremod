@@ -2,8 +2,13 @@
 #   npx wrangler deploy --cwd apps/studio   OR   cd apps/studio && npx wrangler deploy
 # Set `name` to match your Cloudflare Workers/Pages-app project slug if needed.
 name = "futuremod-studio"
+main = "src/worker.ts"
 compatibility_date = "2026-05-03"
 
 [assets]
 directory = "./dist/"
 not_found_handling = "single-page-application"
+
+[[kv_namespaces]]
+binding = "PAGES_KV"
+id = "bf2b9ac82f054fe0b42ce5ea16ec1d12"
