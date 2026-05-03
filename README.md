@@ -41,21 +41,23 @@ pnpm --filter @futuremod/mcp-server start
 
 [apps/studio](apps/studio) is Vite + React. Structure:
 
-- **Project** — `{project}.futuremod.site` (hostname slug).
-- **Page** — named documents within a project (`userId` + `pageId`); each page has its own saved layout.
-- **App canvas** — pan/zoom surface powered by **tldraw**; FutureMod blocks use a custom **`futuremod` shape** so **@futuremod/ui** renders **inside the canvas** (HTMLContainer), not only in a side preview. Legacy geo frames with metadata still get a small inspector. Drawing tools remain if you need markup.
+- **Project** — `{project}.futuremod.site` for public URLs; routing uses **`/projects/:slug/...`** in the dashboard (`localhost` / apex).
+- **Page** — named documents (`userId` + `pageId`); Puck stores layout JSON keyed per project/account.
+- **Editor** — **Puck** with **@futuremod/ui** blocks and the **Data panel** (`DataPanel.tsx`) for project slug, page switching, sample queries (see [`placement.ts`](apps/studio/src/ai/placement.ts) for programmatic placement helpers).
+- **Dashboard & auth** — routes in [`AppRoutes.tsx`](apps/studio/src/routes/AppRoutes.tsx): `/login`, `/signup`, `/dashboard`, **`/projects/:slug/editor`**, **`/projects/:slug/preview`**. **Sign-up is demo-only** (browser `localStorage`); swap for OAuth + API when wired.
+- **Standalone editor** — visiting **`{project}.{root}`** without server-injected **`__PAGE_DATA__`** still mounts [`StandaloneStudioApp.tsx`](apps/studio/src/StandaloneStudioApp.tsx) (same Puck shell as before dashboards).
 
 Also:
 
 - **Data sources and queries** — sample datasets + SQL-shaped definitions; connect your API for live databases (credentials stay server-side).
-- **Palette + [`placeFuturemodWidget`](apps/studio/src/ai/placement.ts)** — same composition hooks for AI / MCP.
-- **Live preview** when selecting a block on the app canvas (`@futuremod/ui`).
+- **Palette + [`placeFuturemodWidget`](apps/studio/src/ai/placement.ts)** — hooks for AI-driven composition.
+- **In-app preview route** — **`/projects/:slug/preview`** renders read-only Puck (`Render`) side-by-side workflow with the editor.
 
 ```bash
 pnpm studio
 ```
 
-Open [http://localhost:5173](http://localhost:5173). For hosted SQL, expose a secure query API; keep secrets off the client.
+Open [http://localhost:5173](http://localhost:5173) — **create an account** (demo) or sign in, then pick or create a project. For hosted SQL, expose a secure query API; keep secrets off the client.
 
 ### Hosting: one subdomain per project
 
@@ -93,10 +95,14 @@ SPA fallback uses `not_found_handling = "single-page-application"` in [`wrangler
 
 ## MCP
 
+This repo includes **[`.cursor/mcp.json`](.cursor/mcp.json)** so Cursor loads **`@futuremod/mcp-server`** from the workspace via [`scripts/run-futuremod-mcp.cjs`](scripts/run-futuremod-mcp.cjs) (it builds **`packages/mcp-server`** once if **`dist/`** is missing). Restart Cursor after changes.
+
+Outside this workspace, once **`@futuremod/mcp-server`** is published, you can use:
+
 ```json
 {
   "mcpServers": {
-    "futuremod": { "command": "npx", "args": ["@futuremod/mcp-server"] }
+    "futuremod": { "type": "stdio", "command": "npx", "args": ["-y", "@futuremod/mcp-server"] }
   }
 }
 ```

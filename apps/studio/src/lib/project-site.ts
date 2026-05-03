@@ -36,7 +36,7 @@ export function getProjectSlugFromLocation(): string {
   }
 
   if (host === root || host === `www.${root}`) {
-    return "root";
+    return "default";
   }
 
   if (host.endsWith(`.${root}`)) {

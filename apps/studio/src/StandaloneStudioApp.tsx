@@ -4,7 +4,11 @@ import { getProjectSlugFromLocation } from "./lib/project-site";
 import { getSavedPageId } from "./persistence/page-store";
 import { PuckEditor } from "./canvas/PuckEditor";
 
-export default function App() {
+/**
+ * Direct editor shell for `{project}.{rootDomain}` when there is no `__PAGE_DATA__`
+ * and the slug is not the marketing apex/root. Bypasses dashboard login flow.
+ */
+export function StandaloneStudioApp() {
   const projectSlug = useMemo(() => getProjectSlugFromLocation(), []);
   const { userId } = useDataStudio();
   const [pageId, setPageId] = useState(() => getSavedPageId(userId, projectSlug));
@@ -19,7 +23,7 @@ export default function App() {
   );
 
   return (
-    <div className="h-screen">
+    <div className="h-screen bg-background">
       <PuckEditor
         persistenceKey={persistenceKey}
         projectSlug={projectSlug}

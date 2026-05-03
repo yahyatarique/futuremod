@@ -16,7 +16,7 @@ interface PublishBody {
 }
 
 // Subdomains that belong to the studio itself — never treated as project pages.
-const RESERVED_SLUGS = new Set(["studio", "www", "api", "local", "root"]);
+const RESERVED_SLUGS = new Set(["studio", "www", "api", "local"]);
 
 /**
  * Returns the project slug if the request is coming from a project subdomain

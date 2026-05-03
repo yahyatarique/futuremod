@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import type React from "react";
 import { Button, Input, Label, Separator } from "@futuremod/ui";
+import { SessionContext } from "../auth/SessionContext";
 import { getFuturemodRootDomain } from "../lib/project-site";
 import { useDataStudio } from "../data/DataStudioContext";
 import { setSavedPageId } from "../persistence/page-store";
@@ -14,6 +15,7 @@ export function DataPanel({
   pageId: string;
   onPageIdChange: (id: string) => void;
 }) {
+  const session = useContext(SessionContext);
   const { userId, setUserId, sources, queries, runQuery } = useDataStudio();
   const [pageInput, setPageInput] = useState(pageId);
   const rootDomain = getFuturemodRootDomain();
@@ -42,10 +44,22 @@ export function DataPanel({
           </p>
         )}
       </div>
-      <div className="space-y-1">
-        <Label htmlFor="user">User id</Label>
-        <Input id="user" value={userId} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setUserId(e.target.value)} className="h-8 text-xs" />
-      </div>
+      {session?.user ? (
+        <div className="rounded-md border border-border bg-muted/20 px-2 py-1.5 text-xs">
+          <span className="text-muted-foreground">Signed in as </span>
+          <span className="font-medium text-foreground">{session.user.email}</span>
+        </div>
+      ) : (
+        <div className="space-y-1">
+          <Label htmlFor="user">Developer user id</Label>
+          <Input
+            id="user"
+            value={userId}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setUserId(e.target.value)}
+            className="h-8 text-xs"
+          />
+        </div>
+      )}
       <div className="space-y-1">
         <Label htmlFor="page">Page id</Label>
         <div className="flex gap-1">
