@@ -91,11 +91,15 @@ Optional repository **Variables**: `VITE_FUTUREMOD_ROOT_DOMAIN` (e.g. `futuremod
 
 For **Cloudflare dashboard builds** (not only GitHub Actions), add **`VITE_TLDRAW_LICENSE_KEY`** under environment variables used during the **build** step before `pnpm build`.
 
-**Cloudflare “application” deploy with `wrangler deploy`:** Running `npx wrangler deploy` from the repo root fails in a **pnpm workspace** (“run in workspace root”). Set the dashboard **Deploy command** to deploy from Studio (where [`apps/studio/wrangler.toml`](apps/studio/wrangler.toml) lives):
+**Cloudflare “application” deploy with `wrangler deploy`:** Running plain `npx wrangler deploy` from the repo root fails in a **pnpm workspace**. Point Wrangler at Studio with **`--cwd`** (still runs from monorepo root — good for dashboard defaults):
 
 ```bash
-cd apps/studio && npx wrangler deploy
+npx wrangler deploy --cwd apps/studio
 ```
+
+Same thing via workspace script after `pnpm install`: **`pnpm deploy:studio`**.
+
+(Equivalent: **`cd apps/studio && npx wrangler deploy`**. [`apps/studio/wrangler.toml`](apps/studio/wrangler.toml) is loaded from that cwd.)
 
 Ensure `wrangler.toml` **`name`** matches your Cloudflare Workers project name. SPA routing uses `not_found_handling = "single-page-application"` in [`wrangler.toml`](apps/studio/wrangler.toml). Do **not** ship a Netlify-style `public/_redirects` catch‑all (`/* → /index.html 200`): Workers static‑asset uploads treat that as an **invalid / infinite‑loop redirect** ([error 10021](https://developers.cloudflare.com/workers/observability/errors/#validation-errors-10021)). For GitHub-deployed **Pages** only (no Wrangler SPA), configure SPA fallback in the Pages project or provider-specific redirects instead.
 

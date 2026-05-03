@@ -1,5 +1,6 @@
-# Workers “static assets” deploy (Git-connected build runs from repo root → use Deploy command below).
-# Set `name` to match your Cloudflare Workers/Pages-app project slug if differed (e.g. `futuremod`).
+# Workers static assets deploy. Cloudflare build runs from monorepo root — use either:
+#   npx wrangler deploy --cwd apps/studio   OR   cd apps/studio && npx wrangler deploy
+# Set `name` to match your Cloudflare Workers/Pages-app project slug if needed.
 name = "futuremod-studio"
 compatibility_date = "2026-05-03"
 
