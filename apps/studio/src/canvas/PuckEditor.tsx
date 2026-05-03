@@ -1,31 +1,12 @@
 import { useMemo, useRef, useState } from "react";
-import { Puck, type Data } from "@measured/puck";
+import { Link } from "react-router-dom";
+import { Eye, FolderOpen } from "lucide-react";
+import { Puck } from "@measured/puck";
 import "@measured/puck/puck.css";
+import { buttonVariants, cn } from "@futuremod/ui";
 import { puckConfig } from "./puck-config";
 import { DataPanel } from "../ui/DataPanel";
-
-// ---------------------------------------------------------------------------
-// Persistence helpers
-// ---------------------------------------------------------------------------
-
-const EMPTY_DATA: Data = { content: [], root: { props: {} } };
-
-function loadPageData(key: string): Data {
-  try {
-    const raw = localStorage.getItem(key);
-    return raw ? (JSON.parse(raw) as Data) : EMPTY_DATA;
-  } catch {
-    return EMPTY_DATA;
-  }
-}
-
-function savePageData(key: string, data: Data) {
-  try {
-    localStorage.setItem(key, JSON.stringify(data));
-  } catch {
-    /* ignore quota errors */
-  }
-}
+import { loadPageData, savePageData } from "../persistence/puck-storage";
 
 // ---------------------------------------------------------------------------
 // Settings popover
@@ -114,6 +95,10 @@ interface PuckEditorProps {
   projectSlug: string;
   pageId: string;
   onPageIdChange: (id: string) => void;
+  dashboardHref?: string;
+  previewHref?: string;
+  /** Called after a successful publish round-trip so the dashboard can bump “last updated.” */
+  onPublished?: () => void;
 }
 
 export function PuckEditor({
@@ -121,6 +106,9 @@ export function PuckEditor({
   projectSlug,
   pageId,
   onPageIdChange,
+  dashboardHref,
+  previewHref,
+  onPublished,
 }: PuckEditorProps) {
   const initialData = useMemo(() => loadPageData(persistenceKey), [persistenceKey]);
 
@@ -140,19 +128,40 @@ export function PuckEditor({
           });
           if (!res.ok) throw new Error(await res.text());
           console.info("[FutureMod] published", { projectSlug, pageId, blocks: data.content.length });
+          onPublished?.();
         } catch (err) {
           console.error("[FutureMod] publish failed", err);
         }
       }}
       overrides={{
         header: ({ actions }) => (
-          <div className="flex h-10 items-center gap-3 border-b border-border bg-background px-4">
-            <span className="text-sm font-semibold tracking-tight">FutureMod Studio</span>
-            <span className="h-3 w-px bg-border" aria-hidden />
-            <span className="text-xs text-muted-foreground">
-              Page: <span className="font-medium text-foreground">{pageId}</span>
+          <div className="flex h-10 items-center gap-2 border-b border-border bg-background px-3 sm:gap-3 sm:px-4">
+            {dashboardHref ? (
+              <Link
+                to={dashboardHref}
+                className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "shrink-0 gap-1.5")}
+              >
+                <FolderOpen className="size-4" aria-hidden />
+                <span className="hidden sm:inline">Projects</span>
+              </Link>
+            ) : (
+              <span className="text-sm font-semibold tracking-tight">FutureMod Studio</span>
+            )}
+            <span className="h-3 w-px shrink-0 bg-border" aria-hidden />
+            <span className="min-w-0 truncate text-xs text-muted-foreground">
+              <span className="hidden sm:inline">Page: </span>
+              <span className="font-medium text-foreground">{pageId}</span>
             </span>
             <div className="flex-1" />
+            {previewHref ? (
+              <Link
+                to={previewHref}
+                className={cn(buttonVariants({ variant: "outline", size: "sm" }), "shrink-0 gap-1.5")}
+              >
+                <Eye className="size-3.5" aria-hidden />
+                Preview
+              </Link>
+            ) : null}
             {actions}
             <SettingsPopover
               projectSlug={projectSlug}

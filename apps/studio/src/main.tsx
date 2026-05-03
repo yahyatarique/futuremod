@@ -4,7 +4,9 @@ import { Render } from "@measured/puck";
 import "@measured/puck/puck.css";
 import { DataStudioProvider } from "./data/DataStudioContext";
 import { puckConfig } from "./canvas/puck-config";
-import App from "./App";
+import { isStandaloneProjectHost } from "./lib/host-mode";
+import { AppRoutes } from "./routes/AppRoutes";
+import { StandaloneStudioApp } from "./StandaloneStudioApp";
 import "./index.css";
 
 declare global {
@@ -27,13 +29,20 @@ if (window.__PAGE_DATA__) {
       </DataStudioProvider>
     </StrictMode>
   );
-} else {
-  // ── Edit mode: full studio editor ───────────────────────────────────────
+} else if (isStandaloneProjectHost(window.location.hostname)) {
+  // ── Legacy: direct Puck editor on customer project subdomain (no KV data) ─
   root.render(
     <StrictMode>
       <DataStudioProvider>
-        <App />
+        <StandaloneStudioApp />
       </DataStudioProvider>
+    </StrictMode>
+  );
+} else {
+  // ── Dashboard: login → projects → editor / preview (BrowserRouter tree) ───
+  root.render(
+    <StrictMode>
+      <AppRoutes />
     </StrictMode>
   );
 }
