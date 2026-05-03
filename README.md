@@ -67,6 +67,7 @@ Deploy the same Studio build behind a wildcard DNS record (`*.futuremod.site`) a
 |----------|---------|
 | `VITE_FUTUREMOD_ROOT_DOMAIN` | Defaults to `futuremod.site` if unset. |
 | `VITE_FUTUREMOD_PROJECT_SLUG` | **Local only:** pretend to be a named project without DNS. |
+| `VITE_TLDRAW_LICENSE_KEY` | **Production:** [tldraw SDK](https://tldraw.dev/sdk-features/license-key) requires a key on HTTPS / non-localhost. Get a [trial](https://tldraw.dev/get-a-license/trial), [hobby](https://tldraw.dev/get-a-license/hobby), or commercial license; set this at **build time** (GitHub secret or Cloudflare build env). Safe to embed (domain-bound). |
 
 ### CI & Cloudflare Pages (GitHub Actions)
 
@@ -84,8 +85,11 @@ Workflows in [`.github/workflows`](.github/workflows):
 3. In GitHub → repo **Settings** → **Secrets and variables** → **Actions**, add:
    - `CLOUDFLARE_API_TOKEN` — the token.
    - `CLOUDFLARE_ACCOUNT_ID` — from Cloudflare dashboard sidebar URL or **Workers & Pages** overview.
+   - `VITE_TLDRAW_LICENSE_KEY` — **Secret** (optional but required for tldraw in production); same value as in [tldraw license docs](https://tldraw.dev/sdk-features/license-key).
 
 Optional repository **Variables**: `VITE_FUTUREMOD_ROOT_DOMAIN` (e.g. `futuremod.site`) so production builds embed the correct apex domain.
+
+For **Cloudflare dashboard builds** (not only GitHub Actions), add **`VITE_TLDRAW_LICENSE_KEY`** under environment variables used during the **build** step before `pnpm build`.
 
 **Cloudflare “application” deploy with `wrangler deploy`:** Running `npx wrangler deploy` from the repo root fails in a **pnpm workspace** (“run in workspace root”). Set the dashboard **Deploy command** to deploy from Studio (where [`apps/studio/wrangler.toml`](apps/studio/wrangler.toml) lives):
 

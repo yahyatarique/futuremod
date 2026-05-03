@@ -32,11 +32,12 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
 
-      # Optional Vite env for production (set in repo Settings → Secrets and variables → Actions)
+      # Optional Vite env for production (vars / secrets in repo Settings → Secrets and variables → Actions)
       - name: Build Studio + packages
         run: pnpm build
         env:
           VITE_FUTUREMOD_ROOT_DOMAIN: ${{ vars.VITE_FUTUREMOD_ROOT_DOMAIN }}
+          VITE_TLDRAW_LICENSE_KEY: ${{ secrets.VITE_TLDRAW_LICENSE_KEY }}
 
       # Create project `futuremod-studio` in Cloudflare Pages (same name), or change projectName below.
       - name: Publish to Cloudflare Pages

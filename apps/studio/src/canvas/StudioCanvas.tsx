@@ -26,6 +26,7 @@ export function StudioCanvas({ persistenceKey, onEditorMount }: StudioCanvasProp
       </div>
       <div className="relative min-h-0 flex-1">
         <Tldraw
+          licenseKey={import.meta.env.VITE_TLDRAW_LICENSE_KEY}
           persistenceKey={persistenceKey}
           shapeUtils={shapeUtils}
           onMount={(editor) => {
