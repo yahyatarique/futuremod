@@ -87,7 +87,13 @@ Workflows in [`.github/workflows`](.github/workflows):
 
 Optional repository **Variables**: `VITE_FUTUREMOD_ROOT_DOMAIN` (e.g. `futuremod.site`) so production builds embed the correct apex domain.
 
-SPA fallback for client routes uses [`apps/studio/public/_redirects`](apps/studio/public/_redirects) (`/* → /index.html`).
+**Cloudflare “application” deploy with `wrangler deploy`:** Running `npx wrangler deploy` from the repo root fails in a **pnpm workspace** (“run in workspace root”). Set the dashboard **Deploy command** to deploy from Studio (where [`apps/studio/wrangler.toml`](apps/studio/wrangler.toml) lives):
+
+```bash
+cd apps/studio && npx wrangler deploy
+```
+
+Ensure `wrangler.toml` **`name`** matches your Cloudflare Workers project name. SPA routing uses `not_found_handling = "single-page-application"`; [`_redirects`](apps/studio/public/_redirects) still helps hosts that honor it outside Workers.
 
 **Packages:** you do **not** deploy `packages/ui` or `packages/ai-context` to Pages separately — Studio’s build **bundles** them into `apps/studio/dist`. Publishing those packages to **npm** is optional and only needed if others install them as libraries. **`@futuremod/mcp-server`** is a **Node** MCP process (not static files); use `npx`/npm or a separate host if you want it in the cloud, not the Pages deploy.
 

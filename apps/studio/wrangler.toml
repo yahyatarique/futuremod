@@ -1,0 +1,8 @@
+# Workers “static assets” deploy (Git-connected build runs from repo root → use Deploy command below).
+# Set `name` to match your Cloudflare Workers/Pages-app project slug if differed (e.g. `futuremod`).
+name = "futuremod-studio"
+compatibility_date = "2026-05-03"
+
+[assets]
+directory = "./dist/"
+not_found_handling = "single-page-application"
