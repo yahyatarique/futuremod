@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Puck, type Data } from "@measured/puck";
 import "@measured/puck/puck.css";
 import { puckConfig } from "./puck-config";
@@ -25,6 +25,84 @@ function savePageData(key: string, data: Data) {
   } catch {
     /* ignore quota errors */
   }
+}
+
+// ---------------------------------------------------------------------------
+// Settings popover
+// ---------------------------------------------------------------------------
+
+function SettingsPopover({
+  projectSlug,
+  pageId,
+  onPageIdChange,
+}: {
+  projectSlug: string;
+  pageId: string;
+  onPageIdChange: (id: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const btnRef = useRef<HTMLButtonElement>(null);
+
+  return (
+    <>
+      <button
+        ref={btnRef}
+        onClick={() => setOpen((v) => !v)}
+        aria-label="Settings"
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          width: 28,
+          height: 28,
+          borderRadius: 6,
+          border: "1px solid hsl(var(--border))",
+          background: open ? "hsl(var(--muted))" : "transparent",
+          cursor: "pointer",
+          color: "hsl(var(--muted-foreground))",
+          flexShrink: 0,
+        }}
+      >
+        {/* gear icon */}
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
+          <circle cx="12" cy="12" r="3"/>
+        </svg>
+      </button>
+
+      {open && (
+        <>
+          {/* backdrop */}
+          <div
+            style={{ position: "fixed", inset: 0, zIndex: 49 }}
+            onClick={() => setOpen(false)}
+          />
+          {/* panel */}
+          <div
+            style={{
+              position: "fixed",
+              top: 44,
+              right: 12,
+              width: 300,
+              maxHeight: "calc(100vh - 56px)",
+              overflowY: "auto",
+              zIndex: 50,
+              background: "hsl(var(--card))",
+              border: "1px solid hsl(var(--border))",
+              borderRadius: 10,
+              boxShadow: "0 8px 32px -4px hsl(0 0% 0% / 0.18)",
+            }}
+          >
+            <DataPanel
+              projectSlug={projectSlug}
+              pageId={pageId}
+              onPageIdChange={(id) => { onPageIdChange(id); setOpen(false); }}
+            />
+          </div>
+        </>
+      )}
+    </>
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -67,18 +145,11 @@ export function PuckEditor({
             </span>
             <div className="flex-1" />
             {actions}
-          </div>
-        ),
-        components: ({ children }) => (
-          <div className="flex h-full flex-col">
-            <div className="shrink-0 overflow-y-auto border-b border-border" style={{ maxHeight: "52%" }}>
-              <DataPanel
-                projectSlug={projectSlug}
-                pageId={pageId}
-                onPageIdChange={onPageIdChange}
-              />
-            </div>
-            <div className="flex-1 overflow-y-auto">{children}</div>
+            <SettingsPopover
+              projectSlug={projectSlug}
+              pageId={pageId}
+              onPageIdChange={onPageIdChange}
+            />
           </div>
         ),
       }}
