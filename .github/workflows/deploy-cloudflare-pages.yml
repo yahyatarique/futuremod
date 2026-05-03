@@ -1,4 +1,5 @@
 name: Deploy Studio (Cloudflare Pages)
+run-name: Studio → Pages (${{ github.event_name }})
 
 on:
   push:
