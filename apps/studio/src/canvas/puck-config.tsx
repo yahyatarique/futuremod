@@ -201,8 +201,57 @@ function DataTableBlock({ title, queryId }: { title?: string; queryId?: string }
 // Puck Config
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Page root — wraps all blocks in the editor canvas and on published pages
+// ---------------------------------------------------------------------------
+
+const maxWidthOptions = [
+  { value: "max-w-sm",  label: "Narrow (640px)" },
+  { value: "max-w-2xl", label: "Medium (768px)" },
+  { value: "max-w-4xl", label: "Wide (1024px)" },
+  { value: "max-w-full", label: "Full width" },
+];
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const puckConfig: Config<any, any> = {
+  root: {
+    fields: {
+      maxWidth: {
+        type: "select",
+        label: "Page width",
+        options: maxWidthOptions,
+      },
+      paddingX: {
+        type: "select",
+        label: "Horizontal padding",
+        options: [
+          { value: "px-4",  label: "Small" },
+          { value: "px-6",  label: "Medium" },
+          { value: "px-10", label: "Large" },
+        ],
+      },
+      paddingY: {
+        type: "select",
+        label: "Vertical padding",
+        options: [
+          { value: "py-6",  label: "Small" },
+          { value: "py-10", label: "Medium" },
+          { value: "py-16", label: "Large" },
+        ],
+      },
+    },
+    defaultProps: {
+      maxWidth: "max-w-2xl",
+      paddingX: "px-6",
+      paddingY: "py-10",
+    },
+    render: ({ children, maxWidth, paddingX, paddingY }) => (
+      <div className={`mx-auto w-full space-y-4 ${maxWidth} ${paddingX} ${paddingY}`}>
+        {children}
+      </div>
+    ),
+  },
+
   categories: {
     data: {
       title: "Data",
