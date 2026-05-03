@@ -1,5 +1,5 @@
-import { items } from "./registry";
-import type { RegistryItem } from "./types";
+import { items } from "./registry.js";
+import type { RegistryItem } from "./types.js";
 
 function renderPropTable(props: RegistryItem["props"]): string {
   if (!props.length) return "";

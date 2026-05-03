@@ -1,3 +1,3 @@
-export type { RegistryItem, RegistryItemType, PropDef, Registry } from "./types";
-export { items, registry, getItem } from "./registry";
-export { generateLlmsTxt, generateLlmsFullTxt } from "./llms";
+export type { RegistryItem, RegistryItemType, PropDef, Registry } from "./types.js";
+export { items, registry, getItem } from "./registry.js";
+export { generateLlmsTxt, generateLlmsFullTxt } from "./llms.js";

@@ -1,20 +1,20 @@
-import type { Registry, RegistryItem } from "./types";
+import type { Registry, RegistryItem } from "./types.js";
 
-import { button } from "./components/button";
-import { card } from "./components/card";
-import { badge } from "./components/badge";
-import { input } from "./components/input";
-import { select } from "./components/select";
-import { avatar } from "./components/avatar";
-import { table } from "./components/table";
-import { statCard } from "./components/stat-card";
-import { alert } from "./components/alert";
-import { tabs } from "./components/tabs";
-import { formField } from "./components/form-field";
-import { dashboardShell } from "./layout/dashboard-shell";
-import { sidebar } from "./layout/sidebar";
-import { pageLayout } from "./layout/page-layout";
-import { emptyState } from "./layout/empty-state";
+import { button } from "./components/button.js";
+import { card } from "./components/card.js";
+import { badge } from "./components/badge.js";
+import { input } from "./components/input.js";
+import { select } from "./components/select.js";
+import { avatar } from "./components/avatar.js";
+import { table } from "./components/table.js";
+import { statCard } from "./components/stat-card.js";
+import { alert } from "./components/alert.js";
+import { tabs } from "./components/tabs.js";
+import { formField } from "./components/form-field.js";
+import { dashboardShell } from "./layout/dashboard-shell.js";
+import { sidebar } from "./layout/sidebar.js";
+import { pageLayout } from "./layout/page-layout.js";
+import { emptyState } from "./layout/empty-state.js";
 
 export const items: RegistryItem[] = [
   // UI primitives
