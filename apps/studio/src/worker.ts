@@ -90,7 +90,9 @@ export default {
           headers: { "Content-Type": "text/html;charset=UTF-8" },
         });
       }
-      // Page not found — fall through to the SPA (will show the editor shell)
+
+      // No published page for this slug — redirect to the main site.
+      return Response.redirect("https://futuremod.site/", 302);
     }
 
     // ── Static SPA fallback ────────────────────────────────────────────────
