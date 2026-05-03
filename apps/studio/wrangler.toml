@@ -1,12 +1,21 @@
 # Workers static assets deploy. Cloudflare build runs from monorepo root — use either:
 #   npx wrangler deploy --cwd apps/studio   OR   cd apps/studio && npx wrangler deploy
 #
-# Subdomain renderer: add a wildcard custom domain in the Cloudflare dashboard
-# (Workers → futuremod-studio → Settings → Domains & Routes) pointing
-# *.futuremod.site to this worker so published project pages are served here.
+# Routes: apex `futuremod.site` (Custom Domain) + subdomains via `*.futuremod.site/*` (zone route).
+# Wildcard Custom Domains are not supported; `*.futuremod.site/*` does not match the naked apex.
+# If apex DNS conflicts, remove stale CNAME/A before first deploy — see Cloudflare Custom Domains docs.
+# Set `name` to match your Cloudflare Workers / Pages project slug if needed.
 name = "futuremod-studio"
 main = "src/worker.ts"
 compatibility_date = "2026-05-03"
+
+[[routes]]
+pattern = "futuremod.site"
+custom_domain = true
+
+[[routes]]
+pattern = "*.futuremod.site/*"
+zone_name = "futuremod.site"
 
 [assets]
 directory = "./dist/"
