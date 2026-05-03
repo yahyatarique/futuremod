@@ -50,9 +50,7 @@ export function PreviewPage() {
           Edit layout
         </Button>
       </header>
-      <div className="mx-auto max-w-4xl p-6">
-        <Render config={puckConfig} data={data} />
-      </div>
+      <Render config={puckConfig} data={data} />
     </div>
   );
 }

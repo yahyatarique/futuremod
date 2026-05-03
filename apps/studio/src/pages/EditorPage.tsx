@@ -3,7 +3,7 @@ import { useParams, useSearchParams } from "react-router-dom";
 import { useSession } from "../auth/SessionContext";
 import { getSavedPageId, setSavedPageId } from "../persistence/page-store";
 import { PuckEditor } from "../canvas/PuckEditor";
-import { touchProject } from "../projects/project-storage";
+import { touchProject } from "../projects/project-db";
 
 export function EditorPage() {
   const { projectSlug = "local" } = useParams();
