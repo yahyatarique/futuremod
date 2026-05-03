@@ -11,7 +11,9 @@ import "./index.css";
 
 declare global {
   interface Window {
-    __PAGE_DATA__?: string;
+    // The worker injects this as a JS object literal (not a JSON string),
+    // so it is already parsed by the time this script runs — no JSON.parse needed.
+    __PAGE_DATA__?: unknown;
   }
 }
 
@@ -19,9 +21,10 @@ const root = createRoot(document.getElementById("root")!);
 
 if (window.__PAGE_DATA__) {
   // ── View mode: render a published page ──────────────────────────────────
-  // The worker injected __PAGE_DATA__ because this request came from a
-  // project subdomain. Render the Puck layout without the editor chrome.
-  const data = JSON.parse(window.__PAGE_DATA__);
+  // The worker injected __PAGE_DATA__ as a raw JS value via script tag, so
+  // it is already an object — calling JSON.parse on it would stringify to
+  // "[object Object]" and fail.
+  const data = window.__PAGE_DATA__;
   root.render(
     <StrictMode>
       <DataStudioProvider>
