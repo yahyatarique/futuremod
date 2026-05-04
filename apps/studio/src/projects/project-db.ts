@@ -8,11 +8,16 @@
 import { supabase } from "../lib/supabase";
 import { slugifyTitle } from "./project-storage";
 import { RESERVED_SLUGS } from "./reserved-slugs";
+import { normalizeProjectSeo, type ProjectSeoMeta } from "./project-seo";
 
 export interface StoredProject {
   slug: string;
   title: string;
   updatedAt: string;
+  /** Optional SEO bundle (also mirrored to KV on publish). */
+  seo?: ProjectSeoMeta;
+  /** When true, live site is served at `{slug}.{root}`; otherwise dashboard-only. */
+  publicOnWeb: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -22,7 +27,7 @@ export interface StoredProject {
 export async function listProjects(userId: string): Promise<StoredProject[]> {
   const { data, error } = await supabase
     .from("projects")
-    .select("slug, title, updated_at")
+    .select("slug, title, updated_at, seo, public_on_web")
     .eq("user_id", userId)
     .order("updated_at", { ascending: false });
 
@@ -32,6 +37,8 @@ export async function listProjects(userId: string): Promise<StoredProject[]> {
     slug:      row.slug,
     title:     row.title,
     updatedAt: row.updated_at as string,
+    seo:       normalizeProjectSeo(row.seo),
+    publicOnWeb: !!(row as { public_on_web?: boolean }).public_on_web,
   }));
 }
 
@@ -67,8 +74,14 @@ export async function addProject(
 
   const { data, error } = await supabase
     .from("projects")
-    .insert({ user_id: userId, slug, title: title.trim() || slug })
-    .select("slug, title, updated_at")
+    .insert({
+      user_id: userId,
+      slug,
+      title: title.trim() || slug,
+      seo: {},
+      public_on_web: false,
+    })
+    .select("slug, title, updated_at, seo, public_on_web")
     .single();
 
   if (error) throw error;
@@ -77,7 +90,48 @@ export async function addProject(
     slug:      data.slug,
     title:     data.title,
     updatedAt: data.updated_at as string,
+    seo:       normalizeProjectSeo(data.seo),
+    publicOnWeb: !!(data as { public_on_web?: boolean }).public_on_web,
   };
+}
+
+export async function fetchProjectPublicOnWeb(userId: string, slug: string): Promise<boolean> {
+  const { data, error } = await supabase
+    .from("projects")
+    .select("public_on_web")
+    .eq("user_id", userId)
+    .eq("slug", slug)
+    .maybeSingle();
+
+  if (error) throw error;
+  return !!(data as { public_on_web?: boolean } | null)?.public_on_web;
+}
+
+export async function fetchProjectSeo(userId: string, slug: string): Promise<ProjectSeoMeta> {
+  const { data, error } = await supabase
+    .from("projects")
+    .select("seo")
+    .eq("user_id", userId)
+    .eq("slug", slug)
+    .maybeSingle();
+
+  if (error) throw error;
+  return normalizeProjectSeo(data?.seo);
+}
+
+export async function saveProjectSeo(
+  userId: string,
+  slug: string,
+  seo: ProjectSeoMeta
+): Promise<void> {
+  const normalized = normalizeProjectSeo(seo);
+  const { error } = await supabase
+    .from("projects")
+    .update({ seo: normalized, updated_at: new Date().toISOString() })
+    .eq("user_id", userId)
+    .eq("slug", slug);
+
+  if (error) throw error;
 }
 
 export async function touchProject(

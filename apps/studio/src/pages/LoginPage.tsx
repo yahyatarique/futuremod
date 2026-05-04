@@ -12,6 +12,7 @@ import {
 } from "@futuremod/ui";
 import { useSession } from "../auth/SessionContext";
 import { GoogleSignInButton } from "../auth/GoogleSignInButton";
+import { ThemeToggle } from "../theme/ThemeToggle";
 
 export function LoginPage() {
   const { user, loading, signIn } = useSession();
@@ -34,7 +35,10 @@ export function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
+    <div className="relative flex min-h-screen flex-col items-center justify-center bg-background p-4">
+      <div className="absolute right-4 top-4 z-10">
+        <ThemeToggle />
+      </div>
       {/* Wordmark */}
       <div className="mb-8 text-center">
         <span className="text-3xl font-bold tracking-tight">FutureMod</span>

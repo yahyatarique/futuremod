@@ -31,5 +31,13 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    // Worker routes (`src/worker.ts`) only exist when Wrangler is running (default :8787).
+    // `pnpm dev` starts both Vite and `wrangler dev`; without the worker, `/api/*` would 404.
+    proxy: {
+      "/api": {
+        target: "http://127.0.0.1:8787",
+        changeOrigin: true,
+      },
+    },
   },
 });

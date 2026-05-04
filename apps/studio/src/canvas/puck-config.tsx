@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { Config } from "@measured/puck";
+import { DropZone } from "@measured/puck";
 import { items } from "@futuremod/ai-context";
 import type { PropDef } from "@futuremod/ai-context";
 import {
@@ -21,9 +22,23 @@ import {
   TableHead,
   TableRow,
   TableCell,
+  DashboardShell,
+  Separator,
+  FormField,
+  Input,
+  Select,
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
 } from "@futuremod/ui";
 import { useDataStudio } from "../data/DataStudioContext";
 import type { QueryResult } from "../data/types";
+import {
+  buildPageRootSurfaceStyle,
+  PAGE_PATTERN_FIELD_OPTIONS,
+  type PagePatternId,
+} from "./page-background-patterns";
 
 // ---------------------------------------------------------------------------
 // Field generation from @futuremod/ai-context PropDef[] metadata
@@ -101,6 +116,30 @@ function buildFields(
 const queryIdField: Record<string, PuckField> = {
   queryId: { type: "text", label: "Query ID" },
 };
+
+const gapFieldOptions = [
+  { value: "gap-3", label: "Tight" },
+  { value: "gap-4", label: "Default" },
+  { value: "gap-6", label: "Relaxed" },
+] as const;
+
+function parseSelectOptionsFromLines(text: string): { value: string; label: string }[] {
+  return text
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const pipe = line.indexOf("|");
+      if (pipe === -1) {
+        return { value: line, label: line };
+      }
+      return {
+        value: line.slice(0, pipe).trim(),
+        label: line.slice(pipe + 1).trim() || line.slice(0, pipe).trim(),
+      };
+    })
+    .filter((o) => o.value.length > 0);
+}
 
 // ---------------------------------------------------------------------------
 // Data-bound block render components (use DataStudio context internally)
@@ -239,15 +278,39 @@ export const puckConfig: Config<any, any> = {
           { value: "py-16", label: "Large" },
         ],
       },
+      pattern: {
+        type: "select",
+        label: "Page pattern",
+        options: PAGE_PATTERN_FIELD_OPTIONS,
+      },
+      colorA: {
+        type: "text",
+        label: "Pattern color A (hex, e.g. #64748b)",
+      },
+      colorB: {
+        type: "text",
+        label: "Pattern color B (hex)",
+      },
     },
     defaultProps: {
       maxWidth: "max-w-2xl",
       paddingX: "px-6",
       paddingY: "py-10",
+      pattern: "none" satisfies PagePatternId,
+      colorA: "#64748b",
+      colorB: "#94a3b8",
     },
-    render: ({ children, maxWidth, paddingX, paddingY }) => (
-      <div className={`mx-auto w-full space-y-4 ${maxWidth} ${paddingX} ${paddingY}`}>
-        {children}
+    render: ({ children, maxWidth, paddingX, paddingY, pattern, colorA, colorB }) => (
+      <div
+        className="min-h-[100dvh] w-full"
+        style={buildPageRootSurfaceStyle(pattern as PagePatternId, colorA, colorB, {
+          maxWidthClass: maxWidth,
+          paddingXClass: paddingX,
+        })}
+      >
+        <div className={`mx-auto w-full space-y-4 ${maxWidth} ${paddingX} ${paddingY}`}>
+          {children}
+        </div>
       </div>
     ),
   },
@@ -270,7 +333,20 @@ export const puckConfig: Config<any, any> = {
     },
     layout: {
       title: "Layout",
-      components: ["EmptyStateBlock"],
+      components: [
+        "DashboardShellBlock",
+        "Grid2Block",
+        "Grid3Block",
+        "GridFlow2Block",
+        "GridFlow3Block",
+        "SeparatorBlock",
+        "EmptyStateBlock",
+      ],
+      defaultExpanded: true,
+    },
+    controls: {
+      title: "Controls",
+      components: ["TabsBlock", "InputBlock", "SelectBlock"],
       defaultExpanded: false,
     },
   },
@@ -382,6 +458,196 @@ export const puckConfig: Config<any, any> = {
       render: ({ title, description }) => (
         <EmptyState title={title} description={description} />
       ),
+    },
+
+    DashboardShellBlock: {
+      label: "Dashboard shell",
+      fields: buildFields("dashboard-shell", {}, ["actions"]),
+      defaultProps: {
+        title: "Dashboard",
+        description: "Summary and key metrics",
+      },
+      render: ({ title, description }) => (
+        <DashboardShell title={title} description={description}>
+          <DropZone zone="main" minEmptyHeight={160} collisionAxis="dynamic" />
+        </DashboardShell>
+      ),
+    },
+
+    Grid2Block: {
+      label: "2-column grid",
+      fields: {
+        gap: { type: "select", label: "Column gap", options: [...gapFieldOptions] },
+      },
+      defaultProps: { gap: "gap-4" },
+      render: ({ gap }) => (
+        <div className={`grid grid-cols-1 md:grid-cols-2 ${gap}`}>
+          <DropZone zone="col-0" minEmptyHeight={120} collisionAxis="dynamic" />
+          <DropZone zone="col-1" minEmptyHeight={120} collisionAxis="dynamic" />
+        </div>
+      ),
+    },
+
+    Grid3Block: {
+      label: "3-column grid",
+      fields: {
+        gap: { type: "select", label: "Column gap", options: [...gapFieldOptions] },
+      },
+      defaultProps: { gap: "gap-4" },
+      render: ({ gap }) => (
+        <div className={`grid grid-cols-1 md:grid-cols-3 ${gap}`}>
+          <DropZone zone="col-0" minEmptyHeight={120} collisionAxis="dynamic" />
+          <DropZone zone="col-1" minEmptyHeight={120} collisionAxis="dynamic" />
+          <DropZone zone="col-2" minEmptyHeight={120} collisionAxis="dynamic" />
+        </div>
+      ),
+    },
+
+    GridFlow2Block: {
+      label: "2-column flow",
+      fields: {
+        gap: { type: "select", label: "Gap", options: [...gapFieldOptions] },
+      },
+      defaultProps: { gap: "gap-4" },
+      render: ({ gap }) => (
+        <DropZone
+          zone="flow"
+          className={`grid grid-cols-1 md:grid-cols-2 ${gap}`}
+          minEmptyHeight={140}
+          collisionAxis="dynamic"
+        />
+      ),
+    },
+
+    GridFlow3Block: {
+      label: "3-column flow",
+      fields: {
+        gap: { type: "select", label: "Gap", options: [...gapFieldOptions] },
+      },
+      defaultProps: { gap: "gap-4" },
+      render: ({ gap }) => (
+        <DropZone
+          zone="flow"
+          className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 ${gap}`}
+          minEmptyHeight={140}
+          collisionAxis="dynamic"
+        />
+      ),
+    },
+
+    SeparatorBlock: {
+      label: "Separator",
+      fields: {
+        orientation: {
+          type: "radio",
+          label: "Orientation",
+          options: [
+            { value: "horizontal", label: "Horizontal" },
+            { value: "vertical", label: "Vertical" },
+          ],
+        },
+      },
+      defaultProps: { orientation: "horizontal" },
+      render: ({ orientation }) => (
+        <Separator orientation={orientation === "vertical" ? "vertical" : "horizontal"} />
+      ),
+    },
+
+    TabsBlock: {
+      label: "Tabs",
+      fields: {
+        tab1Label: { type: "text", label: "Tab 1 label" },
+        tab2Label: { type: "text", label: "Tab 2 label" },
+      },
+      defaultProps: { tab1Label: "Overview", tab2Label: "Details" },
+      render: ({ tab1Label, tab2Label, editMode }) =>
+        editMode ? (
+          <div className="space-y-6 rounded-lg border border-dashed border-border p-4">
+            <div>
+              <p className="mb-2 text-xs font-medium text-muted-foreground">{tab1Label}</p>
+              <DropZone zone="tab-0" minEmptyHeight={96} collisionAxis="dynamic" />
+            </div>
+            <div>
+              <p className="mb-2 text-xs font-medium text-muted-foreground">{tab2Label}</p>
+              <DropZone zone="tab-1" minEmptyHeight={96} collisionAxis="dynamic" />
+            </div>
+          </div>
+        ) : (
+          <Tabs defaultValue="tab-0">
+            <TabsList>
+              <TabsTrigger value="tab-0">{tab1Label}</TabsTrigger>
+              <TabsTrigger value="tab-1">{tab2Label}</TabsTrigger>
+            </TabsList>
+            <TabsContent value="tab-0">
+              <DropZone zone="tab-0" minEmptyHeight={80} collisionAxis="dynamic" />
+            </TabsContent>
+            <TabsContent value="tab-1">
+              <DropZone zone="tab-1" minEmptyHeight={80} collisionAxis="dynamic" />
+            </TabsContent>
+          </Tabs>
+        ),
+    },
+
+    InputBlock: {
+      label: "Input",
+      fields: {
+        ...buildFields("form-field", {}, ["children"]),
+        ...buildFields("input", {}, ["value", "onChange", "error"]),
+      },
+      defaultProps: {
+        label: "Field",
+        hint: "",
+        required: false,
+        type: "text",
+        placeholder: "",
+        disabled: false,
+      },
+      render: ({ label, hint, required, error, type, placeholder, disabled }) => (
+        <FormField label={label} hint={hint || undefined} required={required} error={error || undefined}>
+          <Input type={type} placeholder={placeholder || undefined} disabled={disabled} readOnly />
+        </FormField>
+      ),
+    },
+
+    SelectBlock: {
+      label: "Select",
+      fields: {
+        ...buildFields("form-field", {}, ["children"]),
+        placeholder: { type: "text", label: "Placeholder" },
+        optionsText: {
+          type: "textarea",
+          label: "Options (one per line: value|label)",
+        },
+        disabled: {
+          type: "radio",
+          label: "Disabled",
+          options: [
+            { value: true, label: "Yes" },
+            { value: false, label: "No" },
+          ],
+        },
+      },
+      defaultProps: {
+        label: "Choose",
+        hint: "",
+        required: false,
+        placeholder: "Select…",
+        optionsText: "daily|Daily\nweekly|Weekly\nmonthly|Monthly",
+        disabled: false,
+      },
+      render: ({ label, hint, required, error, placeholder, optionsText, disabled }) => {
+        const options = parseSelectOptionsFromLines(optionsText ?? "");
+        return (
+          <FormField label={label} hint={hint || undefined} required={required} error={error || undefined}>
+            <Select
+              options={options.length ? options : [{ value: "_", label: "Add options" }]}
+              placeholder={placeholder || undefined}
+              disabled={disabled}
+              defaultValue=""
+            />
+          </FormField>
+        );
+      },
     },
   },
 };

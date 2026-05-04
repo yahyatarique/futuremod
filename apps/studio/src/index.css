@@ -1,5 +1,14 @@
 @import "@futuremod/ui/styles";
 
+/* Hint scrollbars / form controls for the active palette */
+html {
+  color-scheme: light;
+}
+
+html.dark {
+  color-scheme: dark;
+}
+
 html,
 body,
 #root {

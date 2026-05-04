@@ -21,6 +21,7 @@ import {
   type StoredProject,
 } from "../projects/project-db";
 import { getFuturemodRootDomain } from "../lib/project-site";
+import { setProjectPublicOnWeb } from "../lib/project-visibility-api";
 
 export function DashboardPage() {
   const { user } = useSession();
@@ -79,8 +80,8 @@ export function DashboardPage() {
         <div>
           <h1 className="text-xl font-semibold tracking-tight">Projects</h1>
           <p className="text-sm text-muted-foreground">
-            Each project gets a public link at{" "}
-            <span className="font-mono">[slug].{rootDomain}</span>
+            Projects are private by default. Turn on <span className="font-medium text-foreground">Share publicly</span>{" "}
+            on a project to serve it at <span className="font-mono">[slug].{rootDomain}</span>.
           </p>
         </div>
         <Button onClick={() => setShowForm((v) => !v)} className="shrink-0">
@@ -139,7 +140,7 @@ export function DashboardPage() {
       ) : projects.length === 0 ? (
         <EmptyState
           title="No projects yet"
-          description="Create your first project and start building your public page."
+          description="Create a project and build your page. Keep it in the dashboard only, or share it to the web when you are ready."
           action={
             <Button variant="accent" onClick={() => setShowForm(true)}>
               <Plus className="size-4" aria-hidden />
@@ -156,6 +157,10 @@ export function DashboardPage() {
               publicUrl={publicUrl(p.slug)}
               onEdit={() => navigate(`/projects/${p.slug}/editor`)}
               onPreview={() => navigate(`/projects/${p.slug}/preview`)}
+              onPublicChange={async (next) => {
+                await setProjectPublicOnWeb(p.slug, next);
+                await refresh();
+              }}
             />
           ))}
         </div>
@@ -173,12 +178,16 @@ function ProjectCard({
   publicUrl,
   onEdit,
   onPreview,
+  onPublicChange,
 }: {
   project: StoredProject;
   publicUrl: string;
   onEdit: () => void;
   onPreview: () => void;
+  onPublicChange: (next: boolean) => Promise<void>;
 }) {
+  const [shareBusy, setShareBusy] = useState(false);
+
   return (
     <Card variant="outline" padding="none" className="flex flex-col overflow-hidden hover:shadow-md transition-shadow">
       {/* Coloured header strip */}
@@ -189,36 +198,81 @@ function ProjectCard({
       </div>
 
       <CardHeader className="px-4 pt-3 pb-1">
-        <CardTitle className="text-base leading-snug">{project.title}</CardTitle>
-        <a
-          href={publicUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-primary transition-colors font-mono mt-0.5 w-fit"
-        >
-          <Globe className="size-3 shrink-0" aria-hidden />
-          {publicUrl.replace("https://", "")}
-        </a>
+        <div className="flex items-start justify-between gap-2">
+          <CardTitle className="text-base leading-snug">{project.title}</CardTitle>
+          <Badge variant={project.publicOnWeb ? "default" : "secondary"} className="shrink-0 text-[10px]">
+            {project.publicOnWeb ? "Public" : "Private"}
+          </Badge>
+        </div>
+        {project.publicOnWeb ? (
+          <a
+            href={publicUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-primary transition-colors font-mono mt-0.5 w-fit"
+          >
+            <Globe className="size-3 shrink-0" aria-hidden />
+            {publicUrl.replace("https://", "")}
+          </a>
+        ) : (
+          <p className="mt-1 text-[11px] leading-snug text-muted-foreground">
+            Live URL disabled — enable Share publicly to publish to the web.
+          </p>
+        )}
       </CardHeader>
 
-      <CardContent className="px-4 pb-4 pt-2 mt-auto flex items-center gap-1.5">
-        <Button size="sm" className="flex-1" onClick={onEdit}>
-          <Pencil className="size-3.5" aria-hidden />
-          Edit
-        </Button>
-        <Button size="sm" variant="outline" onClick={onPreview}>
-          <Eye className="size-3.5" aria-hidden />
-          Preview
-        </Button>
-        <a
-          href={publicUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className={cn(buttonVariants({ size: "sm", variant: "ghost" }), "px-2")}
-          aria-label="Visit live page"
-        >
-          <ExternalLink className="size-3.5" aria-hidden />
-        </a>
+      <CardContent className="px-4 pb-3 pt-2 space-y-3 mt-auto">
+        <label className="flex cursor-pointer items-start gap-2 rounded-md border border-border bg-muted/10 px-2 py-1.5">
+          <input
+            type="checkbox"
+            className="mt-0.5 size-3.5 shrink-0 accent-primary"
+            checked={project.publicOnWeb}
+            disabled={shareBusy}
+            onChange={async (e) => {
+              const next = e.target.checked;
+              setShareBusy(true);
+              try {
+                await onPublicChange(next);
+              } catch {
+                e.target.checked = !next;
+              } finally {
+                setShareBusy(false);
+              }
+            }}
+          />
+          <span className="text-[11px] leading-snug text-muted-foreground">
+            <span className="font-medium text-foreground">Share publicly</span> — serve this project at{" "}
+            <span className="font-mono">{publicUrl.replace("https://", "")}</span>
+          </span>
+        </label>
+        <div className="flex items-center gap-1.5">
+          <Button size="sm" className="flex-1" onClick={onEdit}>
+            <Pencil className="size-3.5" aria-hidden />
+            Edit
+          </Button>
+          <Button size="sm" variant="outline" onClick={onPreview}>
+            <Eye className="size-3.5" aria-hidden />
+            Preview
+          </Button>
+          {project.publicOnWeb ? (
+            <a
+              href={publicUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={cn(buttonVariants({ size: "sm", variant: "ghost" }), "px-2")}
+              aria-label="Visit live page"
+            >
+              <ExternalLink className="size-3.5" aria-hidden />
+            </a>
+          ) : (
+            <span
+              className={cn(buttonVariants({ size: "sm", variant: "ghost" }), "cursor-not-allowed px-2 opacity-40")}
+              aria-hidden
+            >
+              <ExternalLink className="size-3.5" aria-hidden />
+            </span>
+          )}
+        </div>
       </CardContent>
     </Card>
   );

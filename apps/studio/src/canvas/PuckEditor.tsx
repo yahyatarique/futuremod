@@ -1,13 +1,17 @@
 import { useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import { Eye, FolderOpen } from "lucide-react";
 import { Puck } from "@measured/puck";
 import "@measured/puck/puck.css";
+import "./puck-editor-theme.css";
 import { buttonVariants, cn } from "@futuremod/ui";
 import { supabase } from "../lib/supabase";
+import { ThemeToggle } from "../theme/ThemeToggle";
 import { puckConfig } from "./puck-config";
 import { DataPanel } from "../ui/DataPanel";
 import { loadPageData, savePageData } from "../persistence/puck-storage";
+import { useProjectSeo } from "../projects/ProjectSeoContext";
 
 // ---------------------------------------------------------------------------
 // Settings popover
@@ -17,10 +21,14 @@ function SettingsPopover({
   projectSlug,
   pageId,
   onPageIdChange,
+  publicOnWeb,
+  onPublicOnWebChange,
 }: {
   projectSlug: string;
   pageId: string;
   onPageIdChange: (id: string) => void;
+  publicOnWeb?: boolean;
+  onPublicOnWebChange?: (next: boolean) => Promise<void>;
 }) {
   const [open, setOpen] = useState(false);
   const btnRef = useRef<HTMLButtonElement>(null);
@@ -52,37 +60,50 @@ function SettingsPopover({
         </svg>
       </button>
 
-      {open && (
-        <>
-          {/* backdrop */}
-          <div
-            style={{ position: "fixed", inset: 0, zIndex: 49 }}
-            onClick={() => setOpen(false)}
-          />
-          {/* panel */}
-          <div
-            style={{
-              position: "fixed",
-              top: 44,
-              right: 12,
-              width: 300,
-              maxHeight: "calc(100vh - 56px)",
-              overflowY: "auto",
-              zIndex: 50,
-              background: "hsl(var(--card))",
-              border: "1px solid hsl(var(--border))",
-              borderRadius: 10,
-              boxShadow: "0 8px 32px -4px hsl(0 0% 0% / 0.18)",
-            }}
-          >
-            <DataPanel
-              projectSlug={projectSlug}
-              pageId={pageId}
-              onPageIdChange={(id) => { onPageIdChange(id); setOpen(false); }}
+      {open &&
+        createPortal(
+          <>
+            {/* Full-screen backdrop + panel must portal to document.body so clicks are not
+                swallowed by Puck’s internal portal layer (._Puck-portal { z-index: 2 }). */}
+            <div
+              role="presentation"
+              style={{ position: "fixed", inset: 0, zIndex: 10000 }}
+              onClick={() => setOpen(false)}
             />
-          </div>
-        </>
-      )}
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-label="Studio settings"
+              onMouseDown={(e) => e.stopPropagation()}
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                position: "fixed",
+                top: 44,
+                right: 12,
+                width: 300,
+                maxHeight: "calc(100vh - 56px)",
+                overflowY: "auto",
+                zIndex: 10001,
+                background: "hsl(var(--card))",
+                border: "1px solid hsl(var(--border))",
+                borderRadius: 10,
+                boxShadow: "0 8px 32px -4px hsl(0 0% 0% / 0.18)",
+              }}
+            >
+              <DataPanel
+                projectSlug={projectSlug}
+                pageId={pageId}
+                onPageIdChange={(id) => {
+                  onPageIdChange(id);
+                  setOpen(false);
+                }}
+                publicOnWeb={publicOnWeb}
+                onPublicOnWebChange={onPublicOnWebChange}
+              />
+            </div>
+          </>,
+          document.body
+        )}
     </>
   );
 }
@@ -100,6 +121,8 @@ interface PuckEditorProps {
   previewHref?: string;
   /** Called after a successful publish round-trip so the dashboard can bump “last updated.” */
   onPublished?: () => void;
+  publicOnWeb?: boolean;
+  onPublicOnWebChange?: (next: boolean) => Promise<void>;
 }
 
 export function PuckEditor({
@@ -110,8 +133,11 @@ export function PuckEditor({
   dashboardHref,
   previewHref,
   onPublished,
+  publicOnWeb,
+  onPublicOnWebChange,
 }: PuckEditorProps) {
   const initialData = useMemo(() => loadPageData(persistenceKey), [persistenceKey]);
+  const { projectSeo } = useProjectSeo();
 
   return (
     <Puck
@@ -131,7 +157,7 @@ export function PuckEditor({
                 ? { Authorization: `Bearer ${session.access_token}` }
                 : {}),
             },
-            body: JSON.stringify({ projectSlug, pageId, data }),
+            body: JSON.stringify({ projectSlug, pageId, data, projectSeo }),
           });
           if (!res.ok) throw new Error(await res.text());
           console.info("[FutureMod] published", { projectSlug, pageId, blocks: data.content.length });
@@ -170,10 +196,13 @@ export function PuckEditor({
               </Link>
             ) : null}
             {actions}
+            <ThemeToggle />
             <SettingsPopover
               projectSlug={projectSlug}
               pageId={pageId}
               onPageIdChange={onPageIdChange}
+              publicOnWeb={publicOnWeb}
+              onPublicOnWebChange={onPublicOnWebChange}
             />
           </div>
         ),

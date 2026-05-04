@@ -3,7 +3,15 @@ import { useParams, useSearchParams } from "react-router-dom";
 import { useSession } from "../auth/SessionContext";
 import { getSavedPageId, setSavedPageId } from "../persistence/page-store";
 import { PuckEditor } from "../canvas/PuckEditor";
-import { touchProject } from "../projects/project-db";
+import { setProjectPublicOnWeb } from "../lib/project-visibility-api";
+import {
+  fetchProjectPublicOnWeb,
+  fetchProjectSeo,
+  touchProject,
+} from "../projects/project-db";
+import { ProjectSeoProvider } from "../projects/ProjectSeoContext";
+import type { ProjectSeoMeta } from "../projects/project-seo";
+import { publishedDocumentTitle } from "../projects/project-seo";
 
 export function EditorPage() {
   const { projectSlug = "local" } = useParams();
@@ -64,17 +72,66 @@ export function EditorPage() {
     touchProject(userId, projectSlug);
   }, [userId, projectSlug]);
 
+  const [projectSeo, setProjectSeo] = useState<ProjectSeoMeta>({});
+  const [publicOnWeb, setPublicOnWeb] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const seo = await fetchProjectSeo(userId, projectSlug);
+        if (!cancelled) setProjectSeo(seo);
+      } catch {
+        if (!cancelled) setProjectSeo({});
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [userId, projectSlug]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const pub = await fetchProjectPublicOnWeb(userId, projectSlug);
+        if (!cancelled) setPublicOnWeb(pub);
+      } catch {
+        if (!cancelled) setPublicOnWeb(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [userId, projectSlug]);
+
+  const handlePublicOnWebChange = useCallback(
+    async (next: boolean) => {
+      await setProjectPublicOnWeb(projectSlug, next);
+      setPublicOnWeb(next);
+    },
+    [projectSlug]
+  );
+
+  useEffect(() => {
+    document.title = `${publishedDocumentTitle(projectSeo, projectSlug, pageId)} · Studio`;
+  }, [projectSeo, projectSlug, pageId]);
+
   return (
     <div className="h-screen overflow-hidden bg-background">
-      <PuckEditor
-        persistenceKey={persistenceKey}
-        projectSlug={projectSlug}
-        pageId={pageId}
-        onPageIdChange={applyPageId}
-        dashboardHref="/dashboard"
-        previewHref={`/projects/${projectSlug}/preview?page=${encodeURIComponent(pageId)}`}
-        onPublished={handlePublished}
-      />
+      <ProjectSeoProvider projectSeo={projectSeo} setProjectSeo={setProjectSeo}>
+        <PuckEditor
+          persistenceKey={persistenceKey}
+          projectSlug={projectSlug}
+          pageId={pageId}
+          onPageIdChange={applyPageId}
+          dashboardHref="/dashboard"
+          previewHref={`/projects/${projectSlug}/preview?page=${encodeURIComponent(pageId)}`}
+          onPublished={handlePublished}
+          publicOnWeb={publicOnWeb}
+          onPublicOnWebChange={handlePublicOnWebChange}
+        />
+      </ProjectSeoProvider>
     </div>
   );
 }

@@ -3,6 +3,9 @@
   "private": true,
   "version": "0.0.0",
   "packageManager": "pnpm@9.0.0",
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "scripts": {
     "build": "pnpm -r build",
     "dev": "pnpm -r --parallel dev",
@@ -10,9 +13,11 @@
     "deploy:studio": "npx wrangler deploy --cwd apps/studio",
     "lint": "pnpm -r lint",
     "typecheck": "pnpm -r typecheck",
-    "clean": "pnpm -r clean"
+    "clean": "pnpm -r clean",
+    "migrate:supabase": "node scripts/supabase-apply-alters.mjs"
   },
   "devDependencies": {
+    "pg": "^8.13.1",
     "typescript": "^5.4.5"
   }
 }

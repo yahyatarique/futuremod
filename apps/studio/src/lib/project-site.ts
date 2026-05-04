@@ -1,6 +1,6 @@
 /**
- * Production: each project is served at `{project}.futuremod.site`
- * (optionally multi-label, e.g. `staging.acme.futuremod.site` → slug `staging-acme`).
+ * Production: projects are assigned a slug suitable for `{slug}.{rootDomain}`, but the live
+ * subdomain is only served after the owner enables “Share publicly”.
  * Browser storage is per-origin; we still pass the slug for API calls and persistence keys.
  */
 

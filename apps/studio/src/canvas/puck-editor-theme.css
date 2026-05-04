@@ -1,0 +1,21 @@
+/**
+ * Puck ships light neutrals (`--puck-color-*`). When `html.dark` is set by ThemeProvider,
+ * map those tokens to FutureMod’s semantic palette so sidebars, fields, and chrome match dark UI.
+ */
+html.dark {
+  --puck-color-white: hsl(var(--card));
+  --puck-color-black: hsl(var(--foreground));
+
+  --puck-color-grey-01: hsl(var(--foreground));
+  --puck-color-grey-02: hsl(var(--foreground));
+  --puck-color-grey-03: hsl(var(--foreground));
+  --puck-color-grey-04: hsl(var(--foreground));
+  --puck-color-grey-05: hsl(var(--muted-foreground));
+  --puck-color-grey-06: hsl(var(--muted-foreground));
+  --puck-color-grey-07: hsl(var(--muted-foreground));
+  --puck-color-grey-08: hsl(var(--muted-foreground));
+  --puck-color-grey-09: hsl(var(--border));
+  --puck-color-grey-10: hsl(var(--border));
+  --puck-color-grey-11: hsl(var(--muted));
+  --puck-color-grey-12: hsl(var(--muted));
+}

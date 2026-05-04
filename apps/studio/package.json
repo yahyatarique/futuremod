@@ -3,8 +3,12 @@
   "private": true,
   "version": "0.0.1",
   "type": "module",
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "scripts": {
-    "dev": "vite",
+    "dev": "concurrently -k -n vite,worker \"vite\" \"wrangler dev\"",
+    "dev:vite": "vite",
     "build": "vite build",
     "preview": "vite preview",
     "typecheck": "tsc -b --noEmit"
@@ -24,6 +28,8 @@
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.4",
+    "concurrently": "^9.1.2",
+    "wrangler": "^4.87.0",
     "autoprefixer": "^10.4.20",
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.15",

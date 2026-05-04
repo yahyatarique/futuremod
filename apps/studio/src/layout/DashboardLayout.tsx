@@ -12,6 +12,7 @@ import {
   cn,
 } from "@futuremod/ui";
 import { useSession } from "../auth/SessionContext";
+import { ThemeToggle } from "../theme/ThemeToggle";
 
 export function DashboardLayout() {
   const { user, signOut } = useSession();
@@ -36,12 +37,15 @@ export function DashboardLayout() {
       sidebar={
         <Sidebar className="shrink-0">
           <SidebarHeader>
-            <div className="flex items-center gap-2">
-              {/* Logomark */}
-              <div className="flex size-7 items-center justify-center rounded-md bg-primary text-primary-foreground text-xs font-bold select-none">
-                FM
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                {/* Logomark */}
+                <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground text-xs font-bold select-none">
+                  FM
+                </div>
+                <span className="truncate font-bold tracking-tight">FutureMod</span>
               </div>
-              <span className="font-bold tracking-tight">FutureMod</span>
+              <ThemeToggle />
             </div>
           </SidebarHeader>
 

@@ -11,6 +11,9 @@ compatibility_date = "2026-05-03"
 
 [build]
 command = "npm run build"
+# Default would watch all of `./src`, rerunning `vite build` on every React edit while `vite` already HMRs.
+# Only paths that affect the Worker bundle (expand if worker imports grow).
+watch_dir = ["src/worker.ts", "src/projects/project-seo.ts", "src/projects/project-visibility.ts"]
 
 [[routes]]
 pattern = "futuremod.site"
